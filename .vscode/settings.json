@@ -1,0 +1,20 @@
+{
+    //"cmake.generator": "NMake Makefiles",
+    "cmake.configureSettings": {
+        //"PICO_BOARD": "waveshare_rp2040_zero",
+        "PICO_BOARD": "pico",
+        //"PICO_TOOLCHAIN_PATH": "D:/workspaces/embedded/tools/arm-gcc/12.2.rel1",
+        //"PICO_SDK_PATH": "../../pico-sdk",
+        "PICO_SDK_PATH": "/home/admin/workspaces/embedded/projects/pico-sdk-fork",
+        "LIGHT_PATH": "/home/admin/workspaces/embedded/projects/light_framework_mk2"
+    },
+    "C_Cpp.autoAddFileAssociations": false,
+    "C_Cpp.loggingLevel": "Information",
+    //"cortex-debug.armToolchainPath": "D:/workspaces/embedded/tools/arm-gcc/11.2/bin"
+    //"cortex-debug.openocdPath": "D:/workspaces/embedded/tools/openocd/bin/openocd.exe"
+    "cmake.statusbar.advanced": {
+        "debug": { "visibility": "hidden" },
+        "launch": { "visibility": "hidden" },
+        //"launchTarget": { "visibility": "hidden" }
+    }
+}
