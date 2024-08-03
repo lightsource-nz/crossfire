@@ -1,19 +1,20 @@
 {
     "buildType": {
-        "default": "debug-host",
+        "default": "release",
         "choices": {
-            "debug-rp2040": {
-                "short": "Debug - RP2040",
+            "debug-pico": {
+                "short": "Debug - Pico",
                 "long": "Include debug information",
                 "buildType": "Debug",
                 "settings": {
                     "LIGHT_RUN_MODE": "DEBUG",
                     "LIGHT_SYSTEM": "PICO_SDK",
-                    "LIGHT_PLATFORM": "TARGET"
+                    "LIGHT_PLATFORM": "TARGET",
+                    "LIGHT_BOARD": "pico"
                 }
             },
-            "debug-host": {
-                "short": "Debug - Host",
+            "debug-host-pico-sdk": {
+                "short": "Debug - Host (Pico SDK)",
                 "long": "Include debug information",
                 "buildType": "Debug",
                 "settings": {
@@ -27,8 +28,9 @@
                 "long": "Trace logging messages enabled",
                 "buildType": "Debug",
                 "settings": {
-                    "PICO_PLATFORM": "host",
-                    "LIGHT_RUN_MODE": "TRACE"
+                    "LIGHT_RUN_MODE": "TRACE",
+                    "LIGHT_SYSTEM": "HOST_SYSTEM",
+                    "LIGHT_PLATFORM": "HOST"
                 }
             },
             "release": {
@@ -36,8 +38,9 @@
                 "long": "Optimize for speed- exclude debug information",
                 "buildType": "Release",
                 "settings": {
-                    "PICO_PLATFORM": "rp2040",
-                    "LIGHT_RUN_MODE": "PRODUCTION"
+                    "LIGHT_RUN_MODE": "PRODUCTION",
+                    "LIGHT_SYSTEM": "PICO_SDK",
+                    "LIGHT_PLATFORM": "TARGET"
                 }
             }
         }

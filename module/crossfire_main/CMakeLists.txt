@@ -1,4 +1,3 @@
-
 add_executable(crossfire_main)
 
 light_framework_application_module(crossfire_main)
@@ -16,9 +15,10 @@ target_sources(
 target_link_libraries(
         crossfire_main PUBLIC
         light_framework
-        light_usb_common
+        light_usbhost_midi
 )
 
 if(LIGHT_SYSTEM STREQUAL PICO_SDK)
         pico_add_extra_outputs(crossfire_main)
+	pico_enable_stdio_uart(crossfire_main 1)
 endif()

@@ -10,4 +10,7 @@
 
 #define CF_INFO_STR                     "Crossfire v" CF_VERSION_STR
 
+extern void crossfire_init();
+extern void crossfire_task();
+
 #endif

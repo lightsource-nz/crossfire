@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "project-symbols")(type "KiCad")(uri "${KIPRJMOD}/library.kicad_sym")(options "")(descr ""))
+  (lib (name "snapeda")(type "KiCad")(uri "${KIPRJMOD}/Snapeda_kicad_sym.kicad_sym")(options "")(descr ""))
+)

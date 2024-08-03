@@ -1,11 +1,10 @@
 #include <light.h>
-#include <module/usb_common.h>
-
-#include "module_internal.h"
+#include <module/mod_usb.h>
+#include <light_usb_midi.h>
 
 static void _event_load(const struct light_module *module)
 {
-        
+        light_usb_midi_init();
 }
 static void _event_unload(const struct light_module *module)
 {
@@ -22,4 +21,6 @@ static void _module_event(const struct light_module *module, uint8_t event)
                 break;
         }
 }
-Light_Module_Define(light_usb_common, _module_event, &light_framework);
+Light_Module_Define(light_usb_midi, _module_event,
+                                                &light_usb,
+                                                &light_framework);

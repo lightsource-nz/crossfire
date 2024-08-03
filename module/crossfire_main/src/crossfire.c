@@ -1,5 +1,5 @@
 #include <crossfire.h>
-#include <module/usb_common.h>
+#include <module/mod_usbhost_midi.h>
 
 #include "crossfire_internal.h"
 
@@ -15,19 +15,18 @@ uint8_t buf_pool[BUF_COUNT][64];
 uint8_t buf_owner[BUF_COUNT] = { 0 }; // device address that owns buffer
 
 static void crossfire_app_event(const struct light_module *mod, uint8_t event);
+static uint8_t crossfire_app_main(struct light_application *app);
 
-Light_Application_Define(crossfire, crossfire_app_event, &light_usb_common, &light_framework);
+Light_Application_Define(
+        crossfire, crossfire_app_event, crossfire_app_main,
+        &light_usbhost_midi,
+        &light_framework
+);
 
 void main()
 {
         light_framework_init();
 
-#ifdef _HAVE_TINYUSB
-        // init tinyUSB board abstraction
-        board_init();
-
-        tuh_init(BOARD_TUH_RHPORT);
-#endif
     
         __breakpoint();
 }
@@ -37,9 +36,32 @@ static void crossfire_app_event(const struct light_module *mod, uint8_t event)
         switch (event) {
         case LF_EVENT_LOAD:
                 light_debug("crossfire app module received LOAD event","");
+                crossfire_init();
                 break;
         case LF_EVENT_UNLOAD:
                 light_debug("crossfire app module received UNLOAD event","");
                 break;
         }
+}
+
+static uint8_t crossfire_app_main(struct light_application *app)
+{
+        crossfire_task();
+        return LF_STATUS_RUN;
+}
+
+void crossfire_init()
+{
+
+#ifdef _HAVE_TINYUSB
+        // init tinyUSB board abstraction
+        board_init();
+
+        tuh_init(BOARD_TUH_RHPORT);
+        light_info("tinyUSB host stack initialized","");
+#endif
+}
+void crossfire_task()
+{
+
 }
