@@ -5,4 +5,5 @@ build/
 pcb/*-backups/
 pcb/*.lck
 pcb/#auto_saved_files#
+pcb/fp-info-cache
 
