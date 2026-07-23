@@ -1,5 +1,6 @@
 #include <crossfire.h>
 #include <module/mod_usbhost_midi.h>
+#include <light_usbhost_midi.h>
 
 #include "crossfire_internal.h"
 
@@ -56,11 +57,15 @@ void crossfire_init()
         // init tinyUSB board abstraction
         board_init();
 
-        tuh_init(BOARD_TUH_RHPORT);
+        tusb_rhport_init_t host_init = {
+                .role = TUSB_ROLE_HOST,
+                .speed = TUSB_SPEED_AUTO
+        };
+        tusb_init(BOARD_TUH_RHPORT, &host_init);
         light_info("tinyUSB host stack initialized","");
 #endif
 }
 void crossfire_task()
 {
-
+        
 }
