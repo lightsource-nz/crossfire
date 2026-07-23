@@ -1,5 +1,6 @@
 .vscode/*.log
 .vscode/.cortex-debug.*
+.vscode/settings.json
 build/
 
 pcb/*-backups/
