@@ -15,7 +15,6 @@ target_sources(
 target_link_libraries(
         light_usb_midi INTERFACE
         light_usb_common
-        light_framework
 )
 
 if(LIGHT_SYSTEM STREQUAL PICO_SDK)

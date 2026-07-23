@@ -16,5 +16,4 @@ target_link_libraries(
         light_usbhost_midi INTERFACE
         light_usb_midi
         light_usbhost
-        light_framework
 )

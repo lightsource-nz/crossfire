@@ -14,31 +14,30 @@ tusb_desc_device_t desc_device;
 uint8_t buf_pool[BUF_COUNT][64];
 uint8_t buf_owner[BUF_COUNT] = { 0 }; // device address that owns buffer
 
-static void crossfire_app_event(const struct light_module *mod, uint8_t event);
+static void crossfire_app_event(const struct light_module *mod, uint8_t event, void *arg);
 static uint8_t crossfire_app_main(struct light_application *app);
 
 Light_Application_Define(
         crossfire, crossfire_app_event, crossfire_app_main,
-        &light_usbhost_midi,
-        &light_framework
+        &light_usbhost_midi
 );
 
-void main()
+int main(int argc, char *argv[])
 {
         light_framework_init();
+        light_framework_run(argc, argv);
 
-    
-        __breakpoint();
+        return LIGHT_OK;
 }
 
-static void crossfire_app_event(const struct light_module *mod, uint8_t event)
+static void crossfire_app_event(const struct light_module *mod, uint8_t event, void *arg)
 {
         switch (event) {
-        case LF_EVENT_LOAD:
+        case LF_EVENT_MODULE_LOAD:
                 light_debug("crossfire app module received LOAD event","");
                 crossfire_init();
                 break;
-        case LF_EVENT_UNLOAD:
+        case LF_EVENT_MODULE_UNLOAD:
                 light_debug("crossfire app module received UNLOAD event","");
                 break;
         }

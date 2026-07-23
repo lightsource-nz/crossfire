@@ -1,0 +1,65 @@
+{
+    "version": 6,
+    "include": ["cmake/light_presets/light_pico_presets.json"],
+    "configurePresets": [
+        {
+            "name": "conf-crossfire-base",
+            "hidden": true,
+            "inherits": ["conf-light-pico-base"],
+            "binaryDir": "${sourceDir}/build",
+            "generator": "Ninja",
+            "cacheVariables": {
+            }
+        },
+        {
+            "name": "conf-crossfire-host-debug",
+            "inherits": [
+                "conf-crossfire-base",
+                "conf-light-pico-host"
+            ]
+        },
+        {
+            "name": "conf-crossfire-debug",
+            "inherits": [
+                "conf-crossfire-base",
+                "conf-light-pico",
+                "conf-light-debug"
+            ]
+        },
+        {
+            "name": "conf-crossfire-trace",
+            "inherits": [
+                "conf-crossfire-base",
+                "conf-light-trace"
+            ]
+        },
+        {
+            "name": "conf-crossfire-release",
+            "inherits": [
+                "conf-crossfire-base",
+                "conf-light-release"
+            ]
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "build-crossfire-host",
+            "configurePreset": "conf-crossfire-host-debug"
+        },
+        {
+            "name": "build-crossfire-debug",
+            "configurePreset": "conf-crossfire-debug",
+            "targets": ["crossfire_main"]
+        },
+        {
+            "name": "build-crossfire-trace",
+            "configurePreset": "conf-crossfire-trace",
+            "targets": ["crossfire_main"]
+        },
+        {
+            "name": "build-crossfire-release",
+            "configurePreset": "conf-crossfire-release",
+            "targets": ["crossfire_main"]
+        }
+    ]
+}

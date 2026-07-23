@@ -8,6 +8,6 @@
 
 #define LUSB_INFO_STR              "Light USB Common v" LUSB_VERSION_STR
 
-Light_Module_Declare(light_usb)
+Light_Module_Declare(light_usb);
 
 #endif

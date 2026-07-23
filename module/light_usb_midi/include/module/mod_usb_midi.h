@@ -10,6 +10,6 @@
 
 #define LUSB_MIDI_INFO_STR              "Light USB MIDI v" LUSB_MIDI_VERSION_STR
 
-Light_Module_Declare(light_usb_midi)
+Light_Module_Declare(light_usb_midi);
 
 #endif

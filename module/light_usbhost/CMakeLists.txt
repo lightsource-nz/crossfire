@@ -15,10 +15,9 @@ target_sources(
 target_link_libraries(
         light_usbhost INTERFACE
         light_usb_common
-        light_framework
 )
 
-if(LIGHT_SYSTEM STREQUAL PICO_SDK)
+if(LIGHT_SYSTEM STREQUAL PICO_SDK AND LIGHT_PLATFORM STREQUAL TARGET)
         target_link_libraries(
                 light_usbhost INTERFACE
                 tinyusb_host

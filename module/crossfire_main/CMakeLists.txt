@@ -1,7 +1,5 @@
 add_executable(crossfire_main)
 
-light_framework_application_module(crossfire_main)
-
 target_include_directories(
         crossfire_main PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/include
@@ -14,11 +12,10 @@ target_sources(
 
 target_link_libraries(
         crossfire_main PUBLIC
-        light_framework
         light_usbhost_midi
 )
 
-if(LIGHT_SYSTEM STREQUAL PICO_SDK)
+if(LIGHT_SYSTEM STREQUAL PICO_SDK AND LIGHT_PLATFORM STREQUAL TARGET)
+        pico_enable_stdio_uart(crossfire_main 1)
         pico_add_extra_outputs(crossfire_main)
-	pico_enable_stdio_uart(crossfire_main 1)
 endif()

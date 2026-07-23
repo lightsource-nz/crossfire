@@ -10,6 +10,6 @@
 
 #define LUSB_HOST_MIDI_INFO_STR              "Light USB Host v" LUSB_HOST_MIDI_VERSION_STR
 
-Light_Module_Declare(light_usbhost_midi)
+Light_Module_Declare(light_usbhost_midi);
 
 #endif

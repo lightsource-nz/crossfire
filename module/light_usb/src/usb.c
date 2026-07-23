@@ -10,6 +10,8 @@
 #define LIGHT_USB_PIO_ENABLED 1
 #define LIGHT_USB_PIO_SM_MIN 0
 #define LIGHT_USB_PIO_SM_MAX 7
+#else
+#define LIGHT_USB_NATIVE_PORT_COUNT 0
 #endif
 
 static struct light_usb_port _native_port[LIGHT_USB_NATIVE_PORT_COUNT];
@@ -26,9 +28,7 @@ void light_usb_init()
 
 uint8_t light_usb_get_native_port_count()
 {
-#ifdef __RP2040
-        return 1;
-#endif
+        return LIGHT_USB_NATIVE_PORT_COUNT;
 }
 struct light_usb_port *light_usb_get_native_port(uint8_t phys_id);
 bool light_usb_pio_driver_available();
