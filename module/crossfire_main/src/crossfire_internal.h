@@ -1,7 +1,7 @@
 #ifndef _CROSSFIRE_INTERNAL_H
 #define _CROSSFIRE_INTERNAL_H
 
-#ifdef _HAVE_TINYUSB
+#ifdef CF_HAVE_MIDI_BACKEND
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -12,6 +12,12 @@
 // device are never used as forwarding sources or targets -- real USB-MIDI devices
 // virtually always expose just one, so this is generous headroom, not a hard spec limit
 #define CF_MAX_CABLES_PER_DEVICE       4
+
+// max number of MIDI devices tracked at once. on target builds this must stay <=
+// tusb_config.h's CFG_TUH_MIDI, since tinyusb never hands out a mount idx beyond that
+#ifndef CF_MAX_DEVICES
+#define CF_MAX_DEVICES                 4
+#endif
 
 struct cf_midi_device {
         bool mounted;
@@ -25,15 +31,15 @@ struct cf_forward_entry {
         uint8_t dst_cable;
 };
 
-// forwarding targets for one (source device index, source cable) pair. CFG_TUH_MIDI - 1
+// forwarding targets for one (source device index, source cable) pair. CF_MAX_DEVICES - 1
 // is the most targets a single source could ever have: every other mounted device
 struct cf_forward_list {
         uint8_t count;
-        struct cf_forward_entry entry[CFG_TUH_MIDI - 1];
+        struct cf_forward_entry entry[CF_MAX_DEVICES - 1];
 };
 
-extern struct cf_midi_device cf_midi_device[CFG_TUH_MIDI];
-extern struct cf_forward_list cf_forward_table[CFG_TUH_MIDI][CF_MAX_CABLES_PER_DEVICE];
+extern struct cf_midi_device cf_midi_device[CF_MAX_DEVICES];
+extern struct cf_forward_list cf_forward_table[CF_MAX_DEVICES][CF_MAX_CABLES_PER_DEVICE];
 
 // recomputes cf_forward_table from the current cf_midi_device list, applying the
 // built-in forwarding rule above. called whenever a device mounts or unmounts
@@ -43,6 +49,6 @@ extern void cf_forward_table_rebuild(void);
 // according to cf_forward_table; called once per crossfire_task() tick
 extern void cf_forward_service(void);
 
-#endif // _HAVE_TINYUSB
+#endif // CF_HAVE_MIDI_BACKEND
 
 #endif

@@ -1,0 +1,114 @@
+#include <stdio.h>
+#include <string.h>
+
+#include <light.h>
+
+#include "crossfire_internal.h"
+#include "mock_midi.h"
+
+// defines this_app, which light_core's framework.c always references; the test
+// never actually runs the application lifecycle (no light_framework_run() call),
+// so the event/main handlers here are never invoked
+static void test_app_event(const struct light_module *mod, uint8_t event, void *arg) { }
+static uint8_t test_app_main(struct light_application *app) { return LF_STATUS_SHUTDOWN; }
+Light_Application_Define(crossfire_forward_test, test_app_event, test_app_main, &light_core);
+
+static int failures = 0;
+
+#define CHECK(cond, msg) do { \
+        if(!(cond)) { \
+                printf("FAIL: %s (%s:%d)\n", msg, __FILE__, __LINE__); \
+                failures++; \
+        } else { \
+                printf("PASS: %s\n", msg); \
+        } \
+} while(0)
+
+static void test_broadcast_two_devices(void)
+{
+        mock_midi_reset();
+        mock_midi_connect(0, 1, 1, 1); // device 0: daddr 1, 1 rx cable, 1 tx cable
+        mock_midi_connect(1, 2, 1, 1); // device 1: daddr 2, 1 rx cable, 1 tx cable
+
+        const uint8_t note_on[] = { 0x90, 0x3C, 0x64 }; // note-on, middle C, velocity 100
+        mock_midi_feed(0, 0, note_on, sizeof(note_on));
+
+        cf_forward_service();
+
+        uint8_t out[16];
+        uint32_t n = mock_midi_take_written(1, 0, out, sizeof(out));
+        CHECK(n == sizeof(note_on) && memcmp(out, note_on, n) == 0,
+                "note-on from device 0 forwards to device 1's matching cable");
+
+        n = mock_midi_take_written(0, 0, out, sizeof(out));
+        CHECK(n == 0, "forwarding never loops data back to its own source device");
+}
+
+static void test_broadcast_three_devices(void)
+{
+        mock_midi_reset();
+        mock_midi_connect(0, 1, 1, 1);
+        mock_midi_connect(1, 2, 1, 1);
+        mock_midi_connect(2, 3, 1, 1);
+
+        const uint8_t cc[] = { 0xB0, 0x07, 0x7F }; // control change, channel volume, max
+        mock_midi_feed(0, 0, cc, sizeof(cc));
+
+        cf_forward_service();
+
+        uint8_t out[16];
+        uint32_t n1 = mock_midi_take_written(1, 0, out, sizeof(out));
+        uint32_t n2 = mock_midi_take_written(2, 0, out, sizeof(out));
+        CHECK(n1 == sizeof(cc) && n2 == sizeof(cc),
+                "one source broadcasts to every other mounted device");
+}
+
+static void test_cable_count_mismatch(void)
+{
+        mock_midi_reset();
+        mock_midi_connect(0, 1, 2, 2); // device 0 has 2 rx/tx cables
+        mock_midi_connect(1, 2, 1, 1); // device 1 only has 1
+
+        const uint8_t data[] = { 0x91, 0x40, 0x50 };
+        mock_midi_feed(0, 1, data, sizeof(data)); // sent on cable 1, which device 1 doesn't have
+
+        cf_forward_service();
+
+        uint8_t out[16];
+        uint32_t n = mock_midi_take_written(1, 0, out, sizeof(out));
+        CHECK(n == 0, "forwarding is skipped for destinations that lack the source's cable number");
+}
+
+static void test_disconnect_removes_forwarding_target(void)
+{
+        mock_midi_reset();
+        mock_midi_connect(0, 1, 1, 1);
+        mock_midi_connect(1, 2, 1, 1);
+        mock_midi_disconnect(1);
+
+        const uint8_t data[] = { 0x80, 0x3C, 0x40 }; // note-off
+        mock_midi_feed(0, 0, data, sizeof(data));
+
+        cf_forward_service();
+
+        uint8_t out[16];
+        uint32_t n = mock_midi_take_written(1, 0, out, sizeof(out));
+        CHECK(n == 0, "an unmounted device is dropped from the forwarding table");
+}
+
+int main(void)
+{
+        light_framework_init();
+
+        test_broadcast_two_devices();
+        test_broadcast_three_devices();
+        test_cable_count_mismatch();
+        test_disconnect_removes_forwarding_target();
+
+        if(failures) {
+                printf("%d check(s) failed\n", failures);
+                return 1;
+        }
+        printf("all checks passed\n");
+        return 0;
+}
