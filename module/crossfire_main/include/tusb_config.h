@@ -102,6 +102,10 @@
 // 1 hub typically has 4 ports
 #define CFG_TUH_DEVICE_MAX          (CFG_TUH_HUB ? 4 : 1)
 
+// enable the USB-MIDI host class driver (disabled by default upstream), and track up to
+// one mounted MIDI interface per possible device
+#define CFG_TUH_MIDI                CFG_TUH_DEVICE_MAX
+
 // Max endpoint per device
 #define CFG_TUH_ENDPOINT_MAX        8
 
