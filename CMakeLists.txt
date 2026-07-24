@@ -16,5 +16,6 @@ add_subdirectory(module/light_usbhost_midi)
 add_subdirectory(module/crossfire_main)
 
 if(LIGHT_PLATFORM STREQUAL HOST)
+        enable_testing()
         add_subdirectory(test/crossfire_forward_test)
 endif()

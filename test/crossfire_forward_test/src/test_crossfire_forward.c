@@ -24,6 +24,11 @@ static int failures = 0;
         } \
 } while(0)
 
+struct test_case {
+        const char *name;
+        void (*run)(void);
+};
+
 static void test_broadcast_two_devices(void)
 {
         mock_midi_reset();
@@ -96,19 +101,34 @@ static void test_disconnect_removes_forwarding_target(void)
         CHECK(n == 0, "an unmounted device is dropped from the forwarding table");
 }
 
-int main(void)
+static const struct test_case test_cases[] = {
+        { "broadcast_two_devices", test_broadcast_two_devices },
+        { "broadcast_three_devices", test_broadcast_three_devices },
+        { "cable_count_mismatch", test_cable_count_mismatch },
+        { "disconnect_removes_forwarding_target", test_disconnect_removes_forwarding_target },
+};
+#define TEST_CASE_COUNT (sizeof(test_cases) / sizeof(test_cases[0]))
+
+// each test case is run as its own process invocation (`crossfire_forward_test
+// <name>`), so CTest can register and report on them individually
+int main(int argc, char *argv[])
 {
-        light_framework_init();
-
-        test_broadcast_two_devices();
-        test_broadcast_three_devices();
-        test_cable_count_mismatch();
-        test_disconnect_removes_forwarding_target();
-
-        if(failures) {
-                printf("%d check(s) failed\n", failures);
+        if(argc != 2) {
+                printf("usage: %s <test-case>\navailable test cases:\n", argv[0]);
+                for(size_t i = 0; i < TEST_CASE_COUNT; i++)
+                        printf("  %s\n", test_cases[i].name);
                 return 1;
         }
-        printf("all checks passed\n");
-        return 0;
+
+        light_framework_init();
+
+        for(size_t i = 0; i < TEST_CASE_COUNT; i++) {
+                if(strcmp(argv[1], test_cases[i].name) != 0)
+                        continue;
+                test_cases[i].run();
+                return failures ? 1 : 0;
+        }
+
+        printf("unknown test case '%s'\n", argv[1]);
+        return 1;
 }
