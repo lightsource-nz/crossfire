@@ -2,10 +2,13 @@
 
 #include <light.h>
 
+#include <hardware/gpio.h>
+
 #include "crossfire_internal.h"
 #include "crossfire_midi_backend.h"
 
 #define CF_STREAM_BUF_SIZE     64
+#define CF_MIDI_LED_PIN        25
 
 struct cf_midi_device cf_midi_device[CF_MAX_DEVICES];
 struct cf_forward_list cf_forward_table[CF_MAX_DEVICES][CF_MAX_CABLES_PER_DEVICE];
@@ -79,6 +82,7 @@ void tuh_midi_mount_cb(uint8_t idx, const tuh_midi_mount_cb_t *mount_cb_data)
         light_info("USB-MIDI device mounted: idx=%d daddr=%d rx_cables=%d tx_cables=%d",
                         idx, mount_cb_data->daddr, mount_cb_data->rx_cable_count, mount_cb_data->tx_cable_count);
         cf_forward_table_rebuild();
+        gpio_put(CF_MIDI_LED_PIN, true);
 }
 void tuh_midi_umount_cb(uint8_t idx)
 {
@@ -87,6 +91,7 @@ void tuh_midi_umount_cb(uint8_t idx)
         light_info("USB-MIDI device unmounted: idx=%d daddr=%d", idx, cf_midi_device[idx].daddr);
         cf_midi_device[idx].mounted = false;
         cf_forward_table_rebuild();
+        gpio_put(CF_MIDI_LED_PIN, false);
 }
 
 #endif // CF_HAVE_MIDI_BACKEND

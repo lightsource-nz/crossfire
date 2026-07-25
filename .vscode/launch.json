@@ -5,16 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "cortex-debug attach",
+            "name": "cortex-debug launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "showDevDebugOutput": "raw",
+            "rtos": "auto",
             "cwd": "${workspaceRoot}/build",
             "configFiles": ["${workspaceRoot}/openocd.cfg"],
             "svdFile": "${workspaceRoot}/../pico-sdk/src/rp2040/hardware_regs/rp2040.svd",
-            "request": "attach",
+            "request": "launch",
             "executable": "${command:cmake.launchTargetPath}",
             "windows": {
-                "serverpath": "C:/Users/aful018/tools/xpack-openocd-0.12.0-7/bin/openocd.exe"
+                "serverpath": "C:/Users/aful018/tools/xpack-openocd-0.12.0-7/bin/openocd.exe",
+                "armToolchainPath": "C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin"
             },
             "linux": {
                 "armToolchainPath": "/usr/bin",

@@ -1,20 +1,20 @@
 {
     "cmake.configurePreset": "conf-crossfire-host-debug",
     "cmake.environment": {
-        "Path": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-15.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;${env:PATH}",
-        "PATH": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-15.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;${env:PATH}",
+        "Path": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;${env:PATH}",
+        "PATH": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;${env:PATH}",
         "PICO_SDK_PATH": "../../pico-sdk",
         "PICO_TINYUSB_PATH": "C:\\Users\\aful018\\projects\\c\\tinyusb"
     },
     "terminal.integrated.env.windows": {
-        "Path": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-15.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;${env:PATH}",
-        "PATH": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-15.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;${env:PATH}",
+        "Path": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;${env:PATH}",
+        "PATH": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;${env:PATH}",
         "PICO_SDK_PATH": "../../pico-sdk",
         "PICO_TINYUSB_PATH": "C:\\Users\\aful018\\projects\\c\\tinyusb"
     },
     "C_Cpp.autoAddFileAssociations": false,
     "C_Cpp.loggingLevel": "Information",
-    "cortex-debug.armToolchainPath": "C:\\Users\\aful018\\tools\\arm-gnu-toolchain-15.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin",
+    "cortex-debug.armToolchainPath": "C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin",
     "cmake.statusbar.advanced": {
         "debug": { "visibility": "hidden" },
         "launch": { "visibility": "hidden" }
