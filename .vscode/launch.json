@@ -8,7 +8,7 @@
             "name": "cortex-debug launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "showDevDebugOutput": "raw",
+            //"showDevDebugOutput": "raw",
             "rtos": "auto",
             "cwd": "${workspaceRoot}/build",
             "configFiles": ["${workspaceRoot}/openocd.cfg"],
@@ -23,13 +23,6 @@
                 "armToolchainPath": "/usr/bin",
                 "gdbPath": "gdb-multiarch"
             }
-        },
-        {
-            "name": "host-mode",
-            "type": "cppdbg",
-            "request": "launch",
-            "cwd": "${workspaceRoot}/build",
-            "program": "${command:cmake.launchTargetPath}"
         },
         {
             "name": "native-win64-gcc-12.1.0",
