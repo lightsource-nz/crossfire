@@ -2,6 +2,7 @@
 .vscode/.cortex-debug.*
 .vscode/settings.json
 build/
+CMakeUserPresets.json
 
 pcb/*-backups/
 pcb/*.lck
