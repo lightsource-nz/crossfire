@@ -1,0 +1,17 @@
+Font: Type Light Sans (TypeLightSans.ttf)
+Author: GGBotNet (https://ggbot.net, ggbotnet@gmail.com)
+Source: https://github.com/ggbotnet/fonts-cc0/blob/main/Type%20Light%20Sans/TrueType%20(.ttf)/TypeLightSans.ttf
+License: CC0 1.0 Universal (Public Domain Dedication)
+         https://creativecommons.org/publicdomain/zero/1.0/
+
+This font is used purely as a small, license-clear binary fixture for
+exercising 'crush font add' and 'crush render new' in automated tests. No
+rights are reserved; it may be used, copied, or redistributed for any
+purpose.
+
+Replaced AVA.ttf (same repo/author/license) as the test fixture because
+AVA's lowercase glyph outlines are visually identical/near-identical to
+their uppercase counterparts (a real property of that font, not a bug in
+crush's rendering pipeline -- verified by comparing against Arial), which
+made it a poor fixture for a test meant to exercise real character
+rendering. Type Light Sans has genuinely distinct upper/lowercase forms.

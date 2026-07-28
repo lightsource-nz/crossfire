@@ -1,3 +1,18 @@
 [submodule "cmake/light_presets"]
 	path = cmake/light_presets
 	url = https://github.com/lightsource-nz/light_presets.git
+[submodule "module/rend"]
+	path = module/rend
+	url = https://github.com/lightsource-nz/rend.git
+[submodule "module/light_display"]
+	path = module/light_display
+	url = https://github.com/lightsource-nz/light_display.git
+[submodule "module/light_display_ioport"]
+	path = module/light_display_ioport
+	url = https://github.com/lightsource-nz/light_display_ioport.git
+[submodule "module/light_display_po13"]
+	path = module/light_display_po13
+	url = https://github.com/lightsource-nz/light_display_po13.git
+[submodule "module/light_display_sh1107"]
+	path = module/light_display_sh1107
+	url = https://github.com/lightsource-nz/light_display_sh1107.git

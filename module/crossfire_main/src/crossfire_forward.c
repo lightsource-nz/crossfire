@@ -83,6 +83,7 @@ void tuh_midi_mount_cb(uint8_t idx, const tuh_midi_mount_cb_t *mount_cb_data)
                         idx, mount_cb_data->daddr, mount_cb_data->rx_cable_count, mount_cb_data->tx_cable_count);
         cf_forward_table_rebuild();
         gpio_put(CF_MIDI_LED_PIN, true);
+        crossfire_display_update_status();
 }
 void tuh_midi_umount_cb(uint8_t idx)
 {
@@ -92,6 +93,7 @@ void tuh_midi_umount_cb(uint8_t idx)
         cf_midi_device[idx].mounted = false;
         cf_forward_table_rebuild();
         gpio_put(CF_MIDI_LED_PIN, false);
+        crossfire_display_update_status();
 }
 
 #endif // CF_HAVE_MIDI_BACKEND

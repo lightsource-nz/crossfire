@@ -51,4 +51,9 @@ extern void cf_forward_service(void);
 
 #endif // CF_HAVE_MIDI_BACKEND
 
+// redraws the status display (currently just the count of mounted MIDI devices) from
+// whatever state crossfire_forward.c last computed; called after every mount/unmount so
+// the screen never shows stale device counts
+extern void crossfire_display_update_status(void);
+
 #endif
