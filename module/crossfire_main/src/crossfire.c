@@ -12,7 +12,7 @@
 #include <module/mod_light_display.h>
 #include <module/mod_light_display_po13.h>
 
-#include <TypeLightSans_ttf_font.h>
+#include <TypeLightSans_ttf_16px_font.h>
 
 #include "crossfire_internal.h"
 
@@ -99,7 +99,7 @@ static void crossfire_display_init(void)
 {
         display_render = rend_context_create(
                 "crossfire_display", PO13_WIDTH, PO13_HEIGHT, 1);
-        rend_context_set_font(display_render, &TypeLightSans_ttf_font);
+        rend_context_set_font(display_render, &TypeLightSans_ttf_16px_font);
         // the panel is physically 64 wide x 128 tall, but text reads better run along
         // the long (128px) side -- rotate so the logical canvas callers draw against is
         // 128 wide x 64 tall instead; the SH1107 driver and PO13_WIDTH/HEIGHT are
@@ -128,8 +128,12 @@ void crossfire_display_update_status(void)
         // rend has no partial-region clear, so the whole buffer is cleared and both
         // lines redrawn together rather than trying to erase just the device count.
         // with the 90 degree rotation set in crossfire_display_init(), the logical
-        // canvas here is 128 wide x 64 tall (TypeLightSans is 11px/char, so up to 11
-        // characters fit per line), even though the panel is physically 64x128
+        // canvas here is 128 wide x 64 tall (TypeLightSans_ttf_16px_font is 12px/char
+        // wide and 19px tall per line, so up to 10 characters fit per line and two
+        // lines fit with room to spare), even though the panel is physically 64x128.
+        // the font was rendered specifically for this panel's geometry (64x128 pixels
+        // across its real 17.2x32.3mm glass, not an assumed square-pixel display) --
+        // see font-crusher's 'po13' display object and the cmd_render_new__po13 test
         rend_draw_clear(display_render);
         rend_draw_text(display_render, (rend_point2d) {0, 0}, "Crossfire");
 
@@ -141,7 +145,7 @@ void crossfire_display_update_status(void)
         }
         uint8_t status_line[16];
         snprintf((char *)status_line, sizeof(status_line), "devices: %u", mounted_count);
-        rend_draw_text(display_render, (rend_point2d) {0, 16}, status_line);
+        rend_draw_text(display_render, (rend_point2d) {0, TypeLightSans_ttf_16px_font.char_height}, status_line);
 #endif
 
         light_display_command_update(display_main);

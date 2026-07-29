@@ -10,7 +10,7 @@ target_sources(
         crossfire_main PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/src/crossfire.c
         ${CMAKE_CURRENT_LIST_DIR}/src/crossfire_forward.c
-        ${CMAKE_CURRENT_LIST_DIR}/fonts/TypeLightSans_ttf_font.c
+        ${CMAKE_CURRENT_LIST_DIR}/fonts/TypeLightSans_ttf_16px_font.c
 )
 
 target_link_libraries(
