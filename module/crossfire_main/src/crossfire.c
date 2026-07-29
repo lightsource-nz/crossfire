@@ -8,6 +8,7 @@
 #include <light_display_ioport.h>
 #include <light_display.h>
 #include <light_display_po13.h>
+#include <light_display_sh1107.h>
 #include <module/mod_light_display.h>
 #include <module/mod_light_display_po13.h>
 
@@ -99,11 +100,21 @@ static void crossfire_display_init(void)
         display_render = rend_context_create(
                 "crossfire_display", PO13_WIDTH, PO13_HEIGHT, 1);
         rend_context_set_font(display_render, &TypeLightSans_ttf_font);
+        // the panel is physically 64 wide x 128 tall, but text reads better run along
+        // the long (128px) side -- rotate so the logical canvas callers draw against is
+        // 128 wide x 64 tall instead; the SH1107 driver and PO13_WIDTH/HEIGHT are
+        // unaffected, since rotation is purely a rend-side coordinate transform
+        rend_context_set_rotation(display_render, REND_ROTATE_90);
 
         struct io_context *display_io = light_display_po13_setup_io_spi_4p(CF_DISPLAY_PORT_ID);
 
         display_main = light_display_po13_create_device("crossfire_display_main", display_io);
         light_display_set_render_context(display_main, display_render);
+        // hardware column 0 maps to the bottom of the rotated (128x64) logical view
+        // above and column (n_columns-1) to the top, so the driver's default
+        // (chip-native ascending) sweep fills bottom-to-top -- reverse it so updates
+        // read as filling top-to-bottom instead
+        light_display_sh1107_set_sweep_direction(display_main, SH1107_SWEEP_REVERSE);
 
         crossfire_display_update_status();
 
@@ -114,15 +125,13 @@ void crossfire_display_update_status(void)
         if(!display_main)
                 return;
 
-        // rend has no partial-region clear, so the whole buffer is cleared and all
+        // rend has no partial-region clear, so the whole buffer is cleared and both
         // lines redrawn together rather than trying to erase just the device count.
-        // TypeLightSans is 11px wide per character on a 64px-wide canvas, so each line
-        // is capped at 5 characters (55px) to stay safely within the row -- _set_pixel
-        // has no bounds checking, so overflowing text wraps into the next row's buffer
-        // bytes instead of just clipping
+        // with the 90 degree rotation set in crossfire_display_init(), the logical
+        // canvas here is 128 wide x 64 tall (TypeLightSans is 11px/char, so up to 11
+        // characters fit per line), even though the panel is physically 64x128
         rend_draw_clear(display_render);
-        rend_draw_text(display_render, (rend_point2d) {0, 0}, "Cross");
-        rend_draw_text(display_render, (rend_point2d) {0, 16}, "fire");
+        rend_draw_text(display_render, (rend_point2d) {0, 0}, "Crossfire");
 
 #ifdef CF_HAVE_MIDI_BACKEND
         uint8_t mounted_count = 0;
@@ -130,11 +139,9 @@ void crossfire_display_update_status(void)
                 if(cf_midi_device[i].mounted)
                         mounted_count++;
         }
-        // CF_MAX_DEVICES is 4, so mounted_count is always a single digit -- "dev:N" is
-        // exactly 5 characters, same fit budget as the lines above
-        uint8_t status_line[8];
-        snprintf((char *)status_line, sizeof(status_line), "dev:%u", mounted_count);
-        rend_draw_text(display_render, (rend_point2d) {0, 48}, status_line);
+        uint8_t status_line[16];
+        snprintf((char *)status_line, sizeof(status_line), "devices: %u", mounted_count);
+        rend_draw_text(display_render, (rend_point2d) {0, 16}, status_line);
 #endif
 
         light_display_command_update(display_main);
