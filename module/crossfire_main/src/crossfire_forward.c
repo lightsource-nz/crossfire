@@ -94,6 +94,10 @@ void tuh_midi_umount_cb(uint8_t idx)
         cf_forward_table_rebuild();
         gpio_put(CF_MIDI_LED_PIN, false);
         crossfire_display_update_status();
+        // see crossfire_usbhost_request_reset()'s declaration for why this is needed --
+        // works around a stale-hardware-state panic on RP2040's native USB host controller
+        // that otherwise breaks reconnecting the same device
+        crossfire_usbhost_request_reset();
 }
 
 #endif // CF_HAVE_MIDI_BACKEND

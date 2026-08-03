@@ -21,6 +21,7 @@
 #define BUF_COUNT   4
 
 #ifdef _HAVE_TINYUSB
+#include <pico/time.h>
 tusb_desc_device_t desc_device;
 #endif
 
@@ -36,6 +37,10 @@ uint8_t buf_owner[BUF_COUNT] = { 0 }; // device address that owns buffer
 
 static struct rend_context *display_render;
 static struct display_device *display_main;
+
+#ifdef _HAVE_TINYUSB
+static volatile bool _usbhost_reset_pending = false;
+#endif
 
 static void crossfire_display_init(void);
 static void crossfire_display_test_pattern(void);
@@ -78,6 +83,17 @@ static uint8_t crossfire_app_main(struct light_application *app)
         return LF_STATUS_RUN;
 }
 
+#ifdef _HAVE_TINYUSB
+static void _usbhost_init(void)
+{
+        tusb_rhport_init_t host_init = {
+                .role = TUSB_ROLE_HOST,
+                .speed = TUSB_SPEED_AUTO
+        };
+        tusb_init(BOARD_TUH_RHPORT, &host_init);
+}
+#endif
+
 void crossfire_init()
 {
 
@@ -85,15 +101,17 @@ void crossfire_init()
         // init tinyUSB board abstraction
         board_init();
 
-        tusb_rhport_init_t host_init = {
-                .role = TUSB_ROLE_HOST,
-                .speed = TUSB_SPEED_AUTO
-        };
-        tusb_init(BOARD_TUH_RHPORT, &host_init);
+        _usbhost_init();
         light_info("tinyUSB host stack initialized","");
 #endif
 
         crossfire_display_init();
+}
+void crossfire_usbhost_request_reset(void)
+{
+#ifdef _HAVE_TINYUSB
+        _usbhost_reset_pending = true;
+#endif
 }
 static void crossfire_display_init(void)
 {
@@ -158,6 +176,20 @@ void crossfire_task()
         // crossfire_forward.c); this does not block, since osal_queue_receive() ignores
         // its timeout under OPT_OS_NONE
         tuh_task();
+
+        // handled here, after tuh_task() has fully returned, rather than inline from
+        // whatever callback requested it -- see crossfire_usbhost_request_reset()'s
+        // declaration for why. this does block the scheduler for a short, fixed window
+        // (matches the settle delay TinyUSB's own dual/dynamic_switch example uses around
+        // the same teardown/reinit sequence) -- acceptable here since it only ever runs
+        // once per physical disconnect, not on any hot path
+        if(_usbhost_reset_pending) {
+                _usbhost_reset_pending = false;
+                light_info("resetting USB host controller after device disconnect","");
+                tusb_deinit(BOARD_TUH_RHPORT);
+                sleep_ms(100);
+                _usbhost_init();
+        }
 #endif
 #ifdef CF_HAVE_MIDI_BACKEND
         cf_forward_service();

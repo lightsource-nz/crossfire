@@ -56,4 +56,21 @@ extern void cf_forward_service(void);
 // the screen never shows stale device counts
 extern void crossfire_display_update_status(void);
 
+// requests a full USB host controller teardown+reinit on the next crossfire_task() tick.
+// deferred rather than performed inline from tuh_midi_umount_cb() -- tearing down and
+// reinitializing the host stack from inside a callback tinyusb itself is still unwinding
+// for the same disconnect event is not safe (see TinyUSB's own dual/dynamic_switch example,
+// which does the same teardown/delay/reinit sequence from its main loop, never from a
+// mount/umount callback).
+//
+// why this exists: RP2040's native USB host controller can leave stale hardware
+// buffer-control state behind across a disconnect (an acknowledged upstream tinyusb/RP2040
+// issue -- see hathach/tinyusb#3533 -- not something fixable from application code alone),
+// which panics ("buf_ctrl ... already available") the next time a device tries to
+// enumerate. resetting the whole controller after every disconnect is a coarse fix -- it
+// also drops any OTHER currently-mounted device sharing this root port, which is fine for
+// today's single-device test setup but will need revisiting once multiple simultaneous
+// devices/hub ports are in play
+extern void crossfire_usbhost_request_reset(void);
+
 #endif
