@@ -13,6 +13,13 @@ static void test_app_event(const struct light_module *mod, uint8_t event, void *
 static uint8_t test_app_main(struct light_application *app) { return LF_STATUS_SHUTDOWN; }
 Light_Application_Define(crossfire_forward_test, test_app_event, test_app_main, &light_core);
 
+// crossfire_forward.c calls these (declared in crossfire_internal.h, defined in
+// crossfire.c) on every mount/unmount and forwarded packet -- crossfire.c itself isn't
+// part of this test target (it pulls in the real display/USB host stack), so stub them
+// out here rather than exercising either concern
+void crossfire_display_update_status(void) { }
+void crossfire_usbhost_request_reset(void) { }
+
 static int failures = 0;
 
 #define CHECK(cond, msg) do { \
@@ -35,18 +42,20 @@ static void test_broadcast_two_devices(void)
         mock_midi_connect(0, 1, 1, 1); // device 0: daddr 1, 1 rx cable, 1 tx cable
         mock_midi_connect(1, 2, 1, 1); // device 1: daddr 2, 1 rx cable, 1 tx cable
 
-        const uint8_t note_on[] = { 0x90, 0x3C, 0x64 }; // note-on, middle C, velocity 100
-        mock_midi_feed(0, 0, note_on, sizeof(note_on));
+        // note-on, middle C, velocity 100, cable 0 -- byte 0 is (cable_num << 4) | CIN,
+        // CIN 0x9 = note-on
+        const uint8_t note_on[4] = { 0x09, 0x90, 0x3C, 0x64 };
+        mock_midi_feed(0, note_on);
 
         cf_forward_service();
 
-        uint8_t out[16];
-        uint32_t n = mock_midi_take_written(1, 0, out, sizeof(out));
-        CHECK(n == sizeof(note_on) && memcmp(out, note_on, n) == 0,
+        uint8_t out[4];
+        bool got = mock_midi_take_written(1, out);
+        CHECK(got && memcmp(out, note_on, 4) == 0,
                 "note-on from device 0 forwards to device 1's matching cable");
 
-        n = mock_midi_take_written(0, 0, out, sizeof(out));
-        CHECK(n == 0, "forwarding never loops data back to its own source device");
+        got = mock_midi_take_written(0, out);
+        CHECK(!got, "forwarding never loops data back to its own source device");
 }
 
 static void test_broadcast_three_devices(void)
@@ -56,15 +65,16 @@ static void test_broadcast_three_devices(void)
         mock_midi_connect(1, 2, 1, 1);
         mock_midi_connect(2, 3, 1, 1);
 
-        const uint8_t cc[] = { 0xB0, 0x07, 0x7F }; // control change, channel volume, max
-        mock_midi_feed(0, 0, cc, sizeof(cc));
+        // control change, channel volume, max, cable 0 -- CIN 0xB = control change
+        const uint8_t cc[4] = { 0x0B, 0xB0, 0x07, 0x7F };
+        mock_midi_feed(0, cc);
 
         cf_forward_service();
 
-        uint8_t out[16];
-        uint32_t n1 = mock_midi_take_written(1, 0, out, sizeof(out));
-        uint32_t n2 = mock_midi_take_written(2, 0, out, sizeof(out));
-        CHECK(n1 == sizeof(cc) && n2 == sizeof(cc),
+        uint8_t out[4];
+        bool got1 = mock_midi_take_written(1, out);
+        bool got2 = mock_midi_take_written(2, out);
+        CHECK(got1 && got2,
                 "one source broadcasts to every other mounted device");
 }
 
@@ -74,14 +84,15 @@ static void test_cable_count_mismatch(void)
         mock_midi_connect(0, 1, 2, 2); // device 0 has 2 rx/tx cables
         mock_midi_connect(1, 2, 1, 1); // device 1 only has 1
 
-        const uint8_t data[] = { 0x91, 0x40, 0x50 };
-        mock_midi_feed(0, 1, data, sizeof(data)); // sent on cable 1, which device 1 doesn't have
+        // note-on, cable 1 (which device 1 doesn't have): byte 0 = (1 << 4) | 0x9
+        const uint8_t data[4] = { 0x19, 0x91, 0x40, 0x50 };
+        mock_midi_feed(0, data);
 
         cf_forward_service();
 
-        uint8_t out[16];
-        uint32_t n = mock_midi_take_written(1, 0, out, sizeof(out));
-        CHECK(n == 0, "forwarding is skipped for destinations that lack the source's cable number");
+        uint8_t out[4];
+        bool got = mock_midi_take_written(1, out);
+        CHECK(!got, "forwarding is skipped for destinations that lack the source's cable number");
 }
 
 static void test_disconnect_removes_forwarding_target(void)
@@ -91,14 +102,15 @@ static void test_disconnect_removes_forwarding_target(void)
         mock_midi_connect(1, 2, 1, 1);
         mock_midi_disconnect(1);
 
-        const uint8_t data[] = { 0x80, 0x3C, 0x40 }; // note-off
-        mock_midi_feed(0, 0, data, sizeof(data));
+        // note-off, cable 0 -- CIN 0x8 = note-off
+        const uint8_t data[4] = { 0x08, 0x80, 0x3C, 0x40 };
+        mock_midi_feed(0, data);
 
         cf_forward_service();
 
-        uint8_t out[16];
-        uint32_t n = mock_midi_take_written(1, 0, out, sizeof(out));
-        CHECK(n == 0, "an unmounted device is dropped from the forwarding table");
+        uint8_t out[4];
+        bool got = mock_midi_take_written(1, out);
+        CHECK(!got, "an unmounted device is dropped from the forwarding table");
 }
 
 static const struct test_case test_cases[] = {

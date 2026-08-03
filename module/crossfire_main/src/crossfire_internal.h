@@ -13,14 +13,31 @@
 // virtually always expose just one, so this is generous headroom, not a hard spec limit
 #define CF_MAX_CABLES_PER_DEVICE       4
 
-// max number of MIDI devices tracked at once. on target builds this must stay <=
-// tusb_config.h's CFG_TUH_MIDI, since tinyusb never hands out a mount idx beyond that
-#ifndef CF_MAX_DEVICES
-#define CF_MAX_DEVICES                 4
+// max number of real (tinyusb-backed) MIDI devices tracked at once. on target builds this
+// must stay <= tusb_config.h's CFG_TUH_MIDI, since tinyusb never hands out a mount idx
+// beyond that
+#ifndef CF_MAX_DEVICES_USB
+#define CF_MAX_DEVICES_USB             4
 #endif
+
+#ifdef CF_HAVE_SPI_LINK
+// one extra slot, index CF_MAX_DEVICES_USB, reserved exclusively for the SPI-linked peer
+// board (see crossfire_spi_link.c) -- tinyusb's own idx space tops out at
+// CF_MAX_DEVICES_USB-1, so this can never collide with a real mount callback
+#define CF_LINK_DEVICE_IDX             CF_MAX_DEVICES_USB
+#define CF_MAX_DEVICES                 (CF_MAX_DEVICES_USB + 1)
+#else
+#define CF_MAX_DEVICES                 CF_MAX_DEVICES_USB
+#endif
+
+enum cf_device_kind {
+        CF_DEVICE_KIND_USB = 0,
+        CF_DEVICE_KIND_SPI_LINK
+};
 
 struct cf_midi_device {
         bool mounted;
+        enum cf_device_kind kind;
         uint8_t daddr;
         uint8_t rx_cable_count;
         uint8_t tx_cable_count;
@@ -64,6 +81,26 @@ extern bool cf_tx_indicator_active(void);
 // to real traffic (cf_forward_service()), but turning them off again after
 // CF_ACTIVITY_INDICATOR_MS needs something polling the clock even when nothing new arrives
 extern void cf_activity_indicators_service(void);
+
+#ifdef CF_HAVE_SPI_LINK
+// marks the SPI-linked peer's reserved forwarding-table slot (CF_LINK_DEVICE_IDX) as
+// mounted and rebuilds cf_forward_table -- there's no discovery/handshake with the actual
+// peer board, this just makes the slot a forwarding participant unconditionally once
+// compiled in. called once from crossfire_init(), defined in crossfire_forward.c
+extern void cf_link_device_mount(void);
+// brings up both SPI peripherals backing the inter-board link (master/TX for the outgoing
+// direction, slave/RX for the incoming one) -- see crossfire_spi_link.c for pin
+// assignments. called once from crossfire_init()
+extern void cf_spi_link_init(void);
+// non-blocking: drains whatever's arrived so far on the RX link into a buffer that
+// persists across calls, returning true (and filling 'packet') only once a full 4-byte
+// USB-MIDI Event Packet has been received. call every crossfire_task() tick
+extern bool cf_spi_link_packet_read(uint8_t packet[4]);
+// blocking burst (CS low, write 4 bytes, CS high) -- negligible duration for 4 bytes at
+// any reasonable SPI clock, so unlike the display driver's async DMA path this doesn't
+// need to be non-blocking
+extern void cf_spi_link_packet_write(const uint8_t packet[4]);
+#endif // CF_HAVE_SPI_LINK
 
 #endif // CF_HAVE_MIDI_BACKEND
 

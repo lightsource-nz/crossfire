@@ -27,6 +27,14 @@
             ]
         },
         {
+            "name": "conf-crossfire-pico2-debug",
+            "inherits": [
+                "conf-crossfire-base",
+                "conf-light-pico2",
+                "conf-light-debug"
+            ]
+        },
+        {
             "name": "conf-crossfire-trace",
             "inherits": [
                 "conf-crossfire-base",
@@ -49,6 +57,11 @@
         {
             "name": "build-crossfire-debug",
             "configurePreset": "conf-crossfire-debug",
+            "targets": ["crossfire_main"]
+        },
+        {
+            "name": "build-crossfire-pico2-debug",
+            "configurePreset": "conf-crossfire-pico2-debug",
             "targets": ["crossfire_main"]
         },
         {

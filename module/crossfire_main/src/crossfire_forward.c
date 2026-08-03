@@ -8,7 +8,6 @@
 #include "crossfire_internal.h"
 #include "crossfire_midi_backend.h"
 
-#define CF_STREAM_BUF_SIZE     64
 #define CF_MIDI_LED_PIN        25
 
 struct cf_midi_device cf_midi_device[CF_MAX_DEVICES];
@@ -73,44 +72,96 @@ void cf_forward_table_rebuild(void)
         }
 }
 
+// dispatches a single 4-byte USB-MIDI Event Packet read/write to whichever transport
+// backs this device slot -- real USB devices go through tinyusb's packet API, the
+// SPI-linked peer (if compiled in) goes through crossfire_spi_link.c. keeping this
+// dispatch in one place is what lets cf_forward_service() below treat every device slot
+// uniformly, regardless of what's actually behind it
+static bool cf_device_packet_read(uint8_t idx, uint8_t packet[4])
+{
+        if(cf_midi_device[idx].kind == CF_DEVICE_KIND_USB)
+                return tuh_midi_packet_read(idx, packet);
+#ifdef CF_HAVE_SPI_LINK
+        if(cf_midi_device[idx].kind == CF_DEVICE_KIND_SPI_LINK)
+                return cf_spi_link_packet_read(packet);
+#endif
+        return false;
+}
+static void cf_device_packet_write(uint8_t idx, const uint8_t packet[4])
+{
+        if(cf_midi_device[idx].kind == CF_DEVICE_KIND_USB) {
+                tuh_midi_packet_write(idx, packet);
+                return;
+        }
+#ifdef CF_HAVE_SPI_LINK
+        if(cf_midi_device[idx].kind == CF_DEVICE_KIND_SPI_LINK) {
+                cf_spi_link_packet_write(packet);
+                return;
+        }
+#endif
+}
+
 void cf_forward_service(void)
 {
-        uint8_t buffer[CF_STREAM_BUF_SIZE];
+        uint8_t packet[4];
         bool wrote_any[CF_MAX_DEVICES] = { 0 };
 
         for(uint8_t src_idx = 0; src_idx < CF_MAX_DEVICES; src_idx++) {
                 if(!cf_midi_device[src_idx].mounted)
                         continue;
 
-                // tuh_midi_stream_read() stops at the first cable-number change, so it must
-                // be called in a loop to fully drain the incoming FIFO on every tick
-                uint8_t cable_num;
-                uint32_t n;
-                while((n = tuh_midi_stream_read(src_idx, &cable_num, buffer, sizeof(buffer))) > 0) {
+                // drain every packet available from this source before moving to the next
+                // slot -- same "loop until empty" contract the old stream-based version had
+                while(cf_device_packet_read(src_idx, packet)) {
                         cf_last_rx_ms = light_platform_get_time_since_init();
+                        uint8_t cable_num = packet[0] >> 4;
                         if(cable_num >= CF_MAX_CABLES_PER_DEVICE)
                                 continue;
                         struct cf_forward_list *list = &cf_forward_table[src_idx][cable_num];
                         for(uint8_t i = 0; i < list->count; i++) {
                                 struct cf_forward_entry *fwd = &list->entry[i];
-                                tuh_midi_stream_write(fwd->dst_idx, fwd->dst_cable, buffer, n);
+                                // re-embed the destination's own cable number in byte 0,
+                                // replacing the source's -- the CIN (low nibble) and MIDI
+                                // data bytes pass through unchanged
+                                uint8_t out_packet[4] = {
+                                        (uint8_t)((fwd->dst_cable << 4) | (packet[0] & 0x0F)),
+                                        packet[1], packet[2], packet[3]
+                                };
+                                cf_device_packet_write(fwd->dst_idx, out_packet);
                                 wrote_any[fwd->dst_idx] = true;
                         }
                 }
         }
         for(uint8_t idx = 0; idx < CF_MAX_DEVICES; idx++) {
-                if(wrote_any[idx]) {
+                if(!wrote_any[idx])
+                        continue;
+                cf_last_tx_ms = light_platform_get_time_since_init();
+                // the SPI link has no separate flush step -- each packet write is already
+                // a complete, immediate CS-framed burst
+                if(cf_midi_device[idx].kind == CF_DEVICE_KIND_USB)
                         tuh_midi_write_flush(idx);
-                        cf_last_tx_ms = light_platform_get_time_since_init();
-                }
         }
 }
+
+#ifdef CF_HAVE_SPI_LINK
+void cf_link_device_mount(void)
+{
+        cf_midi_device[CF_LINK_DEVICE_IDX].mounted = true;
+        cf_midi_device[CF_LINK_DEVICE_IDX].kind = CF_DEVICE_KIND_SPI_LINK;
+        cf_midi_device[CF_LINK_DEVICE_IDX].daddr = 0; // no real USB address -- not tinyusb-backed
+        cf_midi_device[CF_LINK_DEVICE_IDX].rx_cable_count = 1;
+        cf_midi_device[CF_LINK_DEVICE_IDX].tx_cable_count = 1;
+        light_info("SPI-linked peer registered as device idx=%d", CF_LINK_DEVICE_IDX);
+        cf_forward_table_rebuild();
+}
+#endif
 
 void tuh_midi_mount_cb(uint8_t idx, const tuh_midi_mount_cb_t *mount_cb_data)
 {
         if(idx >= CF_MAX_DEVICES)
                 return;
         cf_midi_device[idx].mounted = true;
+        cf_midi_device[idx].kind = CF_DEVICE_KIND_USB;
         cf_midi_device[idx].daddr = mount_cb_data->daddr;
         cf_midi_device[idx].rx_cable_count = mount_cb_data->rx_cable_count;
         cf_midi_device[idx].tx_cable_count = mount_cb_data->tx_cable_count;

@@ -105,7 +105,16 @@ void crossfire_init()
         light_info("tinyUSB host stack initialized","");
 #endif
 
+#ifdef CF_HAVE_SPI_LINK
+        // link-test rig role: both SPI peripherals are consumed by the inter-board link
+        // (see crossfire_spi_link.c), and there's no display physically attached to a
+        // bare test Pico anyway, so the status display is skipped entirely rather than
+        // trying to make it coexist
+        cf_spi_link_init();
+        cf_link_device_mount();
+#else
         crossfire_display_init();
+#endif
 }
 void crossfire_usbhost_request_reset(void)
 {
