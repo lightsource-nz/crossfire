@@ -164,6 +164,27 @@ void crossfire_display_update_status(void)
         uint8_t status_line[16];
         snprintf((char *)status_line, sizeof(status_line), "devices: %u", mounted_count);
         rend_draw_text(display_render, (rend_point2d) {0, TypeLightSans_ttf_16px_font.char_height}, status_line);
+
+        // RX/TX activity indicators: two small squares on a third row below the text
+        // (fixed left=RX, right=TX -- unlabeled, since there's not much room to spare
+        // once the two text lines above already use 2*char_height=38 of the 64px-tall
+        // logical canvas), only drawn while cf_activity_indicators_service() considers
+        // that direction active. rend has no partial-region clear, so like the rest of
+        // this function, "off" just means not drawing it into the freshly-cleared buffer
+        const uint16_t indicator_size = 12;
+        const uint16_t indicator_y = 2 * TypeLightSans_ttf_16px_font.char_height + 4;
+        if(cf_rx_indicator_active()) {
+                rend_draw_rect(display_render,
+                        (rend_point2d) {0, indicator_y},
+                        (rend_point2d) {indicator_size, indicator_y + indicator_size},
+                        true);
+        }
+        if(cf_tx_indicator_active()) {
+                rend_draw_rect(display_render,
+                        (rend_point2d) {20, indicator_y},
+                        (rend_point2d) {20 + indicator_size, indicator_y + indicator_size},
+                        true);
+        }
 #endif
 
         light_display_command_update(display_main);
@@ -193,5 +214,9 @@ void crossfire_task()
 #endif
 #ifdef CF_HAVE_MIDI_BACKEND
         cf_forward_service();
+        // must run every tick, not just after cf_forward_service() sees new traffic --
+        // it's what notices CF_ACTIVITY_INDICATOR_MS has elapsed and turns an indicator
+        // back off again
+        cf_activity_indicators_service();
 #endif
 }

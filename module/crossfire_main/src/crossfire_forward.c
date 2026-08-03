@@ -1,6 +1,7 @@
 #ifdef CF_HAVE_MIDI_BACKEND
 
 #include <light.h>
+#include <light_platform.h>
 
 #include <hardware/gpio.h>
 
@@ -12,6 +13,37 @@
 
 struct cf_midi_device cf_midi_device[CF_MAX_DEVICES];
 struct cf_forward_list cf_forward_table[CF_MAX_DEVICES][CF_MAX_CABLES_PER_DEVICE];
+
+// timestamps of the most recent RX/TX activity, and whether the indicator each currently
+// drives is on-screen right now -- the "shown" flags are the single source of truth
+// cf_rx_indicator_active()/cf_tx_indicator_active() read back, kept separate from the raw
+// timestamps so a redraw is only triggered on an actual on/off transition, not every tick
+static uint32_t cf_last_rx_ms;
+static uint32_t cf_last_tx_ms;
+static bool cf_rx_indicator_shown;
+static bool cf_tx_indicator_shown;
+
+bool cf_rx_indicator_active(void)
+{
+        return cf_rx_indicator_shown;
+}
+bool cf_tx_indicator_active(void)
+{
+        return cf_tx_indicator_shown;
+}
+void cf_activity_indicators_service(void)
+{
+        uint32_t now = light_platform_get_time_since_init();
+        bool rx_active = (now - cf_last_rx_ms) < CF_ACTIVITY_INDICATOR_MS;
+        bool tx_active = (now - cf_last_tx_ms) < CF_ACTIVITY_INDICATOR_MS;
+
+        if(rx_active == cf_rx_indicator_shown && tx_active == cf_tx_indicator_shown)
+                return;
+
+        cf_rx_indicator_shown = rx_active;
+        cf_tx_indicator_shown = tx_active;
+        crossfire_display_update_status();
+}
 
 void cf_forward_table_rebuild(void)
 {
@@ -55,6 +87,7 @@ void cf_forward_service(void)
                 uint8_t cable_num;
                 uint32_t n;
                 while((n = tuh_midi_stream_read(src_idx, &cable_num, buffer, sizeof(buffer))) > 0) {
+                        cf_last_rx_ms = light_platform_get_time_since_init();
                         if(cable_num >= CF_MAX_CABLES_PER_DEVICE)
                                 continue;
                         struct cf_forward_list *list = &cf_forward_table[src_idx][cable_num];
@@ -66,8 +99,10 @@ void cf_forward_service(void)
                 }
         }
         for(uint8_t idx = 0; idx < CF_MAX_DEVICES; idx++) {
-                if(wrote_any[idx])
+                if(wrote_any[idx]) {
                         tuh_midi_write_flush(idx);
+                        cf_last_tx_ms = light_platform_get_time_since_init();
+                }
         }
 }
 

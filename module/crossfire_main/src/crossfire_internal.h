@@ -49,6 +49,22 @@ extern void cf_forward_table_rebuild(void);
 // according to cf_forward_table; called once per crossfire_task() tick
 extern void cf_forward_service(void);
 
+// how long the RX/TX status indicators stay lit after the most recent activity, before
+// cf_activity_indicators_service() turns them off again
+#define CF_ACTIVITY_INDICATOR_MS       150
+
+// true if a MIDI message was received from / forwarded to any device within the last
+// CF_ACTIVITY_INDICATOR_MS. queried by crossfire_display_update_status() to decide
+// whether to draw the RX/TX indicators
+extern bool cf_rx_indicator_active(void);
+extern bool cf_tx_indicator_active(void);
+// checks whether either indicator's active window has just expired (or just started) and,
+// if the on-screen state actually needs to change, redraws the status display. must be
+// called once per crossfire_task() tick -- indicators are only ever turned on in response
+// to real traffic (cf_forward_service()), but turning them off again after
+// CF_ACTIVITY_INDICATOR_MS needs something polling the clock even when nothing new arrives
+extern void cf_activity_indicators_service(void);
+
 #endif // CF_HAVE_MIDI_BACKEND
 
 // redraws the status display (currently just the count of mounted MIDI devices) from
