@@ -5,7 +5,7 @@
 #include <light_usbhost_midi.h>
 
 #include <rend.h>
-#include <light_display_ioport.h>
+#include <light_ioport.h>
 #include <light_display.h>
 #include <light_display_po13.h>
 #include <light_display_sh1107.h>
