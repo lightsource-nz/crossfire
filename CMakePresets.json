@@ -24,7 +24,10 @@
                 "conf-crossfire-base",
                 "conf-light-pico",
                 "conf-light-debug"
-            ]
+            ],
+            "cacheVariables": {
+                "CROSSFIRE_ENABLE_SPI_LINK": "ON"
+            }
         },
         {
             "name": "conf-crossfire-pico2-debug",
@@ -32,7 +35,10 @@
                 "conf-crossfire-base",
                 "conf-light-pico2",
                 "conf-light-debug"
-            ]
+            ],
+            "cacheVariables": {
+                "CROSSFIRE_ENABLE_SPI_LINK": "ON"
+            }
         },
         {
             "name": "conf-crossfire-trace",

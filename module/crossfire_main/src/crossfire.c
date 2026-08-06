@@ -106,15 +106,14 @@ void crossfire_init()
 #endif
 
 #ifdef CF_HAVE_SPI_LINK
-        // link-test rig role: both SPI peripherals are consumed by the inter-board link
-        // (see crossfire_spi_link.c), and there's no display physically attached to a
-        // bare test Pico anyway, so the status display is skipped entirely rather than
-        // trying to make it coexist
+        // link-test rig role: both real hardware SPI peripherals are consumed by the
+        // inter-board link (spi0 as Link OUT master, spi1 as Link IN slave -- see
+        // crossfire_spi_link.c), so the display below is switched to a PIO-emulated SPI
+        // master on the same pins instead of real spi1, which is unavailable
         cf_spi_link_init();
         cf_link_device_mount();
-#else
-        crossfire_display_init();
 #endif
+        crossfire_display_init();
 }
 void crossfire_usbhost_request_reset(void)
 {
@@ -133,7 +132,11 @@ static void crossfire_display_init(void)
         // unaffected, since rotation is purely a rend-side coordinate transform
         rend_context_set_rotation(display_render, REND_ROTATE_90);
 
+#ifdef CF_HAVE_SPI_LINK
+        struct io_context *display_io = light_display_po13_setup_io_pio_spi_4p(PORT_PIO_SPI_0);
+#else
         struct io_context *display_io = light_display_po13_setup_io_spi_4p(CF_DISPLAY_PORT_ID);
+#endif
 
         display_main = light_display_po13_create_device("crossfire_display_main", display_io);
         light_display_set_render_context(display_main, display_render);
