@@ -92,8 +92,12 @@
 // CONFIGURATION
 //--------------------------------------------------------------------
 
-// Size of buffer to hold descriptors and other data used for enumeration
-#define CFG_TUH_ENUMERATION_BUFSIZE 256
+// Size of buffer to hold descriptors and other data used for enumeration. 256 was too small
+// for a composite audio+MIDI device (its full config descriptor -- Audio Control IF plus
+// MIDIStreaming IF plus several jack descriptors -- exceeds it, so usbh.c's
+// "total_len <= CFG_TUH_ENUMERATION_BUFSIZE" assert silently bails out of enumeration with no
+// mount callback and no visible error, since CFG_TUSB_DEBUG is 0)
+#define CFG_TUH_ENUMERATION_BUFSIZE 512
 
 // only hub class is enabled
 #define CFG_TUH_HUB                 1
