@@ -18,6 +18,7 @@ Light_Application_Define(crossfire_forward_test, test_app_event, test_app_main, 
 // part of this test target (it pulls in the real display/USB host stack), so stub them
 // out here rather than exercising either concern
 void crossfire_display_update_status(void) { }
+void crossfire_display_update_indicators(void) { }
 void crossfire_usbhost_request_reset(void) { }
 
 static int failures = 0;

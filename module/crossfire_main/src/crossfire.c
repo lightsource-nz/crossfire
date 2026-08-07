@@ -150,10 +150,38 @@ static void crossfire_display_init(void)
 
         light_info("status display initialized","");
 }
+// RX/TX activity indicator geometry, in the logical (rotated) canvas -- shared by the
+// drawing code below and by the region the indicator-only update pushes, so the two can't
+// drift apart. two small squares on a third row below the text, fixed left=RX right=TX
+#define CF_INDICATOR_SIZE       12
+#define CF_INDICATOR_Y          (2 * TypeLightSans_ttf_16px_font.char_height + 4)
+#define CF_INDICATOR_TX_X       20
+#define CF_INDICATOR_RIGHT      (CF_INDICATOR_TX_X + CF_INDICATOR_SIZE)
+
+static void _crossfire_display_redraw(bool indicators_only);
+
 void crossfire_display_update_status(void)
+{
+        _crossfire_display_redraw(false);
+}
+// the indicators are by far the most frequently changing thing on this display -- they
+// toggle on every burst of MIDI traffic -- and they occupy one narrow band of the panel.
+// pushing only that band is what keeps their appearance/disappearance from visibly wiping
+// across the glass: under the 90 degree rotation the band maps onto ~13 of the panel's 64
+// hardware columns, so a sweep that used to cross the whole display now covers a strip
+void crossfire_display_update_indicators(void)
+{
+        _crossfire_display_redraw(true);
+}
+static void _crossfire_display_redraw(bool indicators_only)
 {
         if(!display_main)
                 return;
+
+        // this render context is single-buffered, and the update below is asynchronous --
+        // the driver goes on reading this buffer after the call that started it returns.
+        // so wait for any previous update to finish before overwriting it
+        light_display_wait_for_update(display_main);
 
         // rend has no partial-region clear, so the whole buffer is cleared and both
         // lines redrawn together rather than trying to erase just the device count.
@@ -177,29 +205,34 @@ void crossfire_display_update_status(void)
         snprintf((char *)status_line, sizeof(status_line), "devices: %u", mounted_count);
         rend_draw_text(display_render, (rend_point2d) {0, TypeLightSans_ttf_16px_font.char_height}, status_line);
 
-        // RX/TX activity indicators: two small squares on a third row below the text
-        // (fixed left=RX, right=TX -- unlabeled, since there's not much room to spare
-        // once the two text lines above already use 2*char_height=38 of the 64px-tall
-        // logical canvas), only drawn while cf_activity_indicators_service() considers
-        // that direction active. rend has no partial-region clear, so like the rest of
-        // this function, "off" just means not drawing it into the freshly-cleared buffer
-        const uint16_t indicator_size = 12;
-        const uint16_t indicator_y = 2 * TypeLightSans_ttf_16px_font.char_height + 4;
+        // unlabeled, since there's not much room to spare once the two text lines above
+        // already use 2*char_height=38 of the 64px-tall logical canvas. only drawn while
+        // cf_activity_indicators_service() considers that direction active -- rend has no
+        // partial-region clear, so like the rest of this function, "off" just means not
+        // drawing it into the freshly-cleared buffer
         if(cf_rx_indicator_active()) {
                 rend_draw_rect(display_render,
-                        (rend_point2d) {0, indicator_y},
-                        (rend_point2d) {indicator_size, indicator_y + indicator_size},
+                        (rend_point2d) {0, CF_INDICATOR_Y},
+                        (rend_point2d) {CF_INDICATOR_SIZE, CF_INDICATOR_Y + CF_INDICATOR_SIZE},
                         true);
         }
         if(cf_tx_indicator_active()) {
                 rend_draw_rect(display_render,
-                        (rend_point2d) {20, indicator_y},
-                        (rend_point2d) {20 + indicator_size, indicator_y + indicator_size},
+                        (rend_point2d) {CF_INDICATOR_TX_X, CF_INDICATOR_Y},
+                        (rend_point2d) {CF_INDICATOR_RIGHT, CF_INDICATOR_Y + CF_INDICATOR_SIZE},
                         true);
         }
 #endif
 
-        light_display_command_update(display_main);
+        // async either way: this runs from crossfire_task(), the same tick that services
+        // USB and forwards MIDI, so a blocking flush here stalls both
+        if(indicators_only) {
+                light_display_command_update_region_async(display_main,
+                        (rend_point2d) {0, CF_INDICATOR_Y},
+                        (rend_point2d) {CF_INDICATOR_RIGHT, CF_INDICATOR_Y + CF_INDICATOR_SIZE});
+                return;
+        }
+        light_display_command_update_async(display_main);
 }
 void crossfire_task()
 {

@@ -106,8 +106,14 @@ extern void cf_spi_link_packet_write(const uint8_t packet[4]);
 
 // redraws the status display (currently just the count of mounted MIDI devices) from
 // whatever state crossfire_forward.c last computed; called after every mount/unmount so
-// the screen never shows stale device counts
+// the screen never shows stale device counts. pushes the whole panel
 extern void crossfire_display_update_status(void);
+// same redraw, but only pushes the RX/TX indicator band to the panel. for the very
+// frequent case where nothing but an indicator changed -- see the definition for why
+// limiting the pushed region is what stops them visibly wiping across the display.
+// the text is left as-is on the panel, so this must not be used when it could have
+// changed (use crossfire_display_update_status() then)
+extern void crossfire_display_update_indicators(void);
 
 // requests a full USB host controller teardown+reinit on the next crossfire_task() tick.
 // deferred rather than performed inline from tuh_midi_umount_cb() -- tearing down and

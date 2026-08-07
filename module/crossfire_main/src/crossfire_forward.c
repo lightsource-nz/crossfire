@@ -41,7 +41,9 @@ void cf_activity_indicators_service(void)
 
         cf_rx_indicator_shown = rx_active;
         cf_tx_indicator_shown = tx_active;
-        crossfire_display_update_status();
+        // only an indicator changed here by construction (the early-out above returns
+        // unless one of the two flags flipped), so only that band needs pushing
+        crossfire_display_update_indicators();
 }
 
 void cf_forward_table_rebuild(void)
