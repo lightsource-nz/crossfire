@@ -22,6 +22,7 @@ target_sources(
 target_link_libraries(
         crossfire_main PUBLIC
         light_usbhost_midi
+        light_canvas
         light_display
         light_display_po13
         rend

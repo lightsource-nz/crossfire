@@ -5,10 +5,12 @@
 #include <light_usbhost_midi.h>
 
 #include <rend.h>
+#include <light_canvas.h>
 #include <light_ioport.h>
 #include <light_display.h>
 #include <light_display_po13.h>
 #include <light_display_sh1107.h>
+#include <module/mod_light_canvas.h>
 #include <module/mod_light_display.h>
 #include <module/mod_light_display_po13.h>
 
@@ -37,6 +39,10 @@ uint8_t buf_owner[BUF_COUNT] = { 0 }; // device address that owns buffer
 
 static struct rend_context *display_render;
 static struct display_device *display_main;
+// owns the buffer handling and the region flushing that this file used to do by hand. left
+// single-buffered and unpaced deliberately: the panel is 1KB, and this display is driven by
+// events (a device mounting, a burst of MIDI) rather than by a clock
+static struct canvas_context *display_canvas;
 
 #ifdef _HAVE_TINYUSB
 static volatile bool _usbhost_reset_pending = false;
@@ -52,6 +58,7 @@ Light_Application_Define(
         crossfire, crossfire_app_event, crossfire_app_main,
         &light_usbhost_midi,
         &rend,
+        &light_canvas,
         &light_display,
         &light_display_po13
 );
@@ -146,6 +153,12 @@ static void crossfire_display_init(void)
         // read as filling top-to-bottom instead
         light_display_sh1107_set_sweep_direction(display_main, SH1107_SWEEP_REVERSE);
 
+        // created after the device exists, since it presents onto it. &display_main serves
+        // as the one-element device array -- light_canvas borrows the pointer and indexes
+        // [0], and display_main is a file-static whose address is stable for the life of
+        // the program
+        display_canvas = light_canvas_create(display_render, &display_main, 1);
+
         crossfire_display_update_status();
 
         light_info("status display initialized","");
@@ -175,13 +188,16 @@ void crossfire_display_update_indicators(void)
 }
 static void _crossfire_display_redraw(bool indicators_only)
 {
-        if(!display_main)
+        if(!display_canvas)
                 return;
 
-        // this render context is single-buffered, and the update below is asynchronous --
-        // the driver goes on reading this buffer after the call that started it returns.
-        // so wait for any previous update to finish before overwriting it
-        light_display_wait_for_update(display_main);
+        // opens the frame: because this canvas is single-buffered, that means waiting out
+        // any update still reading the buffer -- the same cooperative drain this function
+        // used to call for itself -- and then clearing. nothing blocks beyond that, which
+        // matters because this runs from crossfire_task(), the same tick that services USB
+        // and forwards MIDI
+        if(!light_canvas_frame_begin(display_canvas))
+                return;
 
         // rend has no partial-region clear, so the whole buffer is cleared and both
         // lines redrawn together rather than trying to erase just the device count.
@@ -192,7 +208,6 @@ static void _crossfire_display_redraw(bool indicators_only)
         // the font was rendered specifically for this panel's geometry (64x128 pixels
         // across its real 17.2x32.3mm glass, not an assumed square-pixel display) --
         // see font-crusher's 'po13' display object and the cmd_render_new__po13 test
-        rend_draw_clear(display_render);
         rend_draw_text(display_render, (rend_point2d) {0, 0}, "Crossfire");
 
 #ifdef CF_HAVE_MIDI_BACKEND
@@ -224,15 +239,20 @@ static void _crossfire_display_redraw(bool indicators_only)
         }
 #endif
 
-        // async either way: this runs from crossfire_task(), the same tick that services
-        // USB and forwards MIDI, so a blocking flush here stalls both
-        if(indicators_only) {
-                light_display_command_update_region_async(display_main,
+        // only the indicator band is marked dirty for an indicator-only redraw, which is
+        // what keeps a burst of MIDI from visibly wiping the whole panel: under the 90
+        // degree rotation that band covers ~13 of the 64 hardware columns. the rect is the
+        // same CF_INDICATOR_* geometry the drawing above uses, so the two cannot drift
+        if(indicators_only)
+                light_canvas_invalidate(display_canvas,
                         (rend_point2d) {0, CF_INDICATOR_Y},
                         (rend_point2d) {CF_INDICATOR_RIGHT, CF_INDICATOR_Y + CF_INDICATOR_SIZE});
-                return;
-        }
-        light_display_command_update_async(display_main);
+        else
+                light_canvas_invalidate_all(display_canvas);
+
+        // pushes asynchronously, same as before -- see the note in frame_begin above about
+        // why nothing here may block
+        light_canvas_frame_end(display_canvas);
 }
 void crossfire_task()
 {

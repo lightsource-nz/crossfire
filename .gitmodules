@@ -16,3 +16,6 @@
 [submodule "module/light_display_sh1107"]
 	path = module/light_display_sh1107
 	url = https://github.com/lightsource-nz/light_display_sh1107.git
+[submodule "module/light_canvas"]
+	path = module/light_canvas
+	url = https://github.com/lightsource-nz/light_canvas.git
