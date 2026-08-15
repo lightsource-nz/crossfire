@@ -39,4 +39,24 @@
                 Preset = 'conf-crossfire-host-debug'
                 Ctest  = $true
         }
+
+        #   HOST_OS, not the pico_hostmode this project's host preset uses: pico_hostmode is a
+        # host build of the Pico SDK, and the coverage build is a plain Linux one. Only the
+        # portable parts are measurable here, which for this project is a small share -- most of
+        # crossfire is USB and transport code that only exists on target
+        Coverage = @{
+                Objects     = 'auto'
+                IgnoreRegex = '(/lib/|/usr/|sanitizers/|_deps/|/freetype/|/jansson/|pico-sdk)'
+                #   pico_hostmode, not HOST_OS: crossfire_forward_test includes hardware/gpio.h,
+                # so it needs the Pico SDK's own host build and will not compile against a plain
+                # Linux one. FONT_CRUSHER_PATH is passed explicitly because the sibling-checkout
+                # default resolves against the source root, and rend would otherwise fetch
+                # font-crusher from GitHub into _deps
+                CMakeArgs   = @(
+                        '-DLIGHT_SYSTEM=PICO_SDK', '-DLIGHT_PLATFORM=HOST',
+                        '-DLIGHT_BOARD=pico_hostmode', '-DPICO_BOARD=none',
+                        '-DPICO_SDK_PATH=/mnt/c/Users/aful018/projects/c/pico-sdk',
+                        '-DFONT_CRUSHER_PATH=/mnt/c/Users/aful018/projects/c/font-crusher'
+                )
+        }
 }
