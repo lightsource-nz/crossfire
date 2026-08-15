@@ -42,17 +42,23 @@
         },
         {
             "name": "conf-crossfire-trace",
+            "description": "As conf-crossfire-debug but at TRACE verbosity. conf-light-pico is inherited because it supplies LIGHT_PLATFORM and LIGHT_BOARD, without which light_platform.cmake has no board to select a chip and toolchain from. Omitting it meant this preset could only configure by inheriting a board from whatever cache already occupied build/, so it appeared to work in a used tree and failed in a fresh one. CROSSFIRE_ENABLE_SPI_LINK is deliberately left at its default: that option builds the two-board SPI-linked test rig, which is not what a trace build of the ordinary firmware should be.",
             "inherits": [
                 "conf-crossfire-base",
+                "conf-light-pico",
                 "conf-light-trace"
-            ]
+            ],
+            "binaryDir": "${sourceDir}/build-trace"
         },
         {
             "name": "conf-crossfire-release",
+            "description": "As conf-crossfire-debug but built for release. See conf-crossfire-trace for why conf-light-pico is inherited and why this has its own binaryDir.",
             "inherits": [
                 "conf-crossfire-base",
+                "conf-light-pico",
                 "conf-light-release"
-            ]
+            ],
+            "binaryDir": "${sourceDir}/build-release"
         }
     ],
     "buildPresets": [
