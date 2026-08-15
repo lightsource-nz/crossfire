@@ -10,7 +10,9 @@ $ErrorActionPreference = 'Stop'
 $candidate = if ($env:LIGHT_PATH) {
         $env:LIGHT_PATH
 } else {
-        Join-Path $PSScriptRoot '..\..\light_framework_mk3'
+        # forward slashes: PowerShell accepts them on Windows, while a backslash on Linux is an
+        # ordinary filename character, so '..\..\x' there names one file that does not exist
+        Join-Path $PSScriptRoot '../../light_framework_mk3'
 }
 
 if (-not (Test-Path (Join-Path $candidate 'scripts/light-build.ps1'))) {
