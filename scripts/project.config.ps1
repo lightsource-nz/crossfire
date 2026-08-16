@@ -49,14 +49,14 @@
                 IgnoreRegex = '(/lib/|/usr/|sanitizers/|_deps/|/freetype/|/jansson/|pico-sdk)'
                 #   pico_hostmode, not HOST_OS: crossfire_forward_test includes hardware/gpio.h,
                 # so it needs the Pico SDK's own host build and will not compile against a plain
-                # Linux one. FONT_CRUSHER_PATH is passed explicitly because the sibling-checkout
-                # default resolves against the source root, and rend would otherwise fetch
-                # font-crusher from GitHub into _deps
+                # Linux one.
+                #   PICO_SDK_PATH and FONT_CRUSHER_PATH are NOT listed here. They used to be, as
+                # absolute /mnt/c/... paths that only worked on one machine; light-coverage.ps1
+                # now resolves both itself (user config, else the sibling checkout) and translates
+                # them, so every project gets them without naming a path
                 CMakeArgs   = @(
                         '-DLIGHT_SYSTEM=PICO_SDK', '-DLIGHT_PLATFORM=HOST',
-                        '-DLIGHT_BOARD=pico_hostmode', '-DPICO_BOARD=none',
-                        '-DPICO_SDK_PATH=/mnt/c/Users/aful018/projects/c/pico-sdk',
-                        '-DFONT_CRUSHER_PATH=/mnt/c/Users/aful018/projects/c/font-crusher'
+                        '-DLIGHT_BOARD=pico_hostmode', '-DPICO_BOARD=none'
                 )
         }
 }

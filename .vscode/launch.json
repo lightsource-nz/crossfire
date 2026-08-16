@@ -20,8 +20,8 @@
             "request": "launch",
             "executable": "${command:cmake.launchTargetPath}",
             "windows": {
-                "serverpath": "C:/Users/aful018/tools/xpack-openocd-0.12.0-7/bin/openocd.exe",
-                "armToolchainPath": "C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin"
+                "serverpath": "${env:LIGHT_OPENOCD_BIN}/openocd.exe",
+                "armToolchainPath": "${env:LIGHT_ARM_TOOLCHAIN_BIN}"
             },
             "linux": {
                 "armToolchainPath": "/usr/bin",
@@ -40,8 +40,8 @@
             "request": "launch",
             "executable": "${command:cmake.launchTargetPath}",
             "windows": {
-                "serverpath": "C:/Users/aful018/tools/xpack-openocd-0.12.0-7/bin/openocd.exe",
-                "armToolchainPath": "C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin"
+                "serverpath": "${env:LIGHT_OPENOCD_BIN}/openocd.exe",
+                "armToolchainPath": "${env:LIGHT_ARM_TOOLCHAIN_BIN}"
             },
             "linux": {
                 "armToolchainPath": "/usr/bin",
@@ -53,7 +53,7 @@
             "type": "cppdbg",
             "request": "launch",
             "cwd": "${workspaceRoot}/build",
-            "miDebuggerPath": "C:/msys64/mingw64/bin/gdb.exe",
+            "miDebuggerPath": "${env:LIGHT_HOST_GDB}",
             "program": "${command:cmake.launchTargetPath}"
         }
     ]

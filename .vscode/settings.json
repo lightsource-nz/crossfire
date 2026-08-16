@@ -1,9 +1,28 @@
 {
+    //   NO ABSOLUTE PATHS -- this file used to name one developer's C:\Users\<name>\tools four
+    // times over, which no second machine could satisfy.
+    //
+    //   the tool directories come from the environment, set by light-env.ps1 from the gitignored
+    // user.config.ps1 (or from its derived defaults). For these to be populated, start VS Code
+    // from a shell that has dot-sourced it:
+    //
+    //     . $env:LIGHT_PATH/scripts/light-env.ps1
+    //     code .
+    //
+    //   an unset variable expands to nothing and simply leaves that entry off PATH, so a
+    // developer whose toolchains are already on PATH needs none of this. Building from the
+    // terminal via scripts/build.ps1 does not depend on this file at all -- that path sets its
+    // own environment, and is the supported one.
     "cmake.configurePreset": "conf-crossfire-debug",
     "cmake.environment": {
-        "Path": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;C:\\Users\\aful018\\AppData\\Local\\Microsoft\\WinGet\\Links;${env:PATH}",
-        "PATH": "C:\\Users\\aful018\\tools\\w64devkit\\bin;C:\\Users\\aful018\\tools\\arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi\\bin;C:\\Users\\aful018\\tools\\xpack-openocd-0.12.0-7\\bin;C:\\Users\\aful018\\AppData\\Local\\Microsoft\\WinGet\\Links;${env:PATH}",
-        "PICO_SDK_PATH": "../../pico-sdk"
+        "Path": "${env:LIGHT_W64DEVKIT_BIN};${env:LIGHT_ARM_TOOLCHAIN_BIN};${env:LIGHT_OPENOCD_BIN};${env:PATH}",
+        "PATH": "${env:LIGHT_W64DEVKIT_BIN};${env:LIGHT_ARM_TOOLCHAIN_BIN};${env:LIGHT_OPENOCD_BIN};${env:PATH}",
+        //   sibling checkouts, expressed against the workspace rather than the build tree -- the
+        // old "../../pico-sdk" was relative to wherever CMake happened to be invoked from, which
+        // is only correct for a build directory exactly one level down
+        "PICO_SDK_PATH": "${workspaceFolder}/../pico-sdk",
+        "FONT_CRUSHER_PATH": "${workspaceFolder}/../font-crusher",
+        "LIGHT_PATH": "${workspaceFolder}/../light_framework_mk3"
     },
     "C_Cpp.autoAddFileAssociations": false,
     "C_Cpp.loggingLevel": "Information"
