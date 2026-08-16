@@ -12,9 +12,10 @@
 #       font-crusher/           <- FONT_CRUSHER_PATH (supplies the `crush` font tool)
 #       pico-sdk/               <- PICO_SDK_PATH
 #
-# NOTE the firmware here is a superset of screen-test's difficulty: crossfire is a USB host as
-# well as a device, so its rp2040 build pulls in Pico-PIO-USB from tinyusb's own submodules.
-# That is why pico-sdk is checked out recursively here and not there.
+# NOTE crossfire is a USB host as well as a device, but it uses the RP2's hardware controller
+# only, so pico-sdk is checked out exactly as screen-test does it. It briefly linked
+# tinyusb_pico_pio_usb, which needed Pico-PIO-USB -- a library tinyusb neither vendors nor
+# submodules, and that therefore existed on one machine and no clone. See module/light_usb.
 name: CI
 
 on:
@@ -70,7 +71,7 @@ jobs:
           repository: lightsource-nz/pico-sdk
           ref: master
           path: pico-sdk
-          submodules: recursive
+          submodules: true
 
       - name: install build tools
         run: |
@@ -120,15 +121,14 @@ jobs:
           path: font-crusher
           submodules: recursive
 
-      #   recursive, unlike screen-test's: the USB host stack needs Pico-PIO-USB, which is a
-      # submodule OF tinyusb rather than of the SDK. Without it the build fails inside
-      # hcd_pio_usb.c on a missing header, naming a file nobody here wrote
+      #   non-recursive: this fetches tinyusb, which the USB device and host stacks both need,
+      # without tinyusb's own tree. Nothing here uses Pico-PIO-USB
       - uses: actions/checkout@v4
         with:
           repository: lightsource-nz/pico-sdk
           ref: master
           path: pico-sdk
-          submodules: recursive
+          submodules: true
 
       - name: install build tools
         run: |
