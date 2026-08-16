@@ -36,11 +36,21 @@ add_subdirectory(module/light_usb_midi)
 add_subdirectory(module/light_usbhost)
 add_subdirectory(module/light_usbhost_midi)
 add_subdirectory(module/rend)
-add_subdirectory(module/light_display)
+
+#   the display group -- core, panel drivers and backlight, previously four separate submodules
+# here (light_display, light_ioport, light_display_sh1107, light_display_po13) pinned at four
+# independent commits. Resolved by path now, defaulting to a sibling checkout at
+# ../light-display, so nothing here names a location.
+#
+#   this project links only the SH1107/po13 pair; the rest of the group's drivers are INTERFACE
+# libraries that compile nothing unless something links them, so their presence is free.
+#
+#   light_ioport is not listed: it moved into the framework and arrives with
+# add_subdirectory(${LIGHT_PATH}) above.
+light_resolve_project(LIGHT_DISPLAY light-display)
+add_subdirectory(${LIGHT_DISPLAY_PATH} light_display_group)
+
 add_subdirectory(module/light_canvas)
-add_subdirectory(module/light_ioport)
-add_subdirectory(module/light_display_sh1107)
-add_subdirectory(module/light_display_po13)
 add_subdirectory(module/crossfire_main)
 
 if(LIGHT_PLATFORM STREQUAL HOST)
