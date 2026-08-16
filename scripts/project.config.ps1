@@ -35,6 +35,35 @@
 
         DefaultTarget = 'crossfire_main'
 
+        #   which OpenOCD config and SVD belong to each preset, for scripts/debug.ps1. Getting
+        # this pairing wrong is not a clean failure: attaching an rp2040 configuration to an
+        # rp2350 image misbehaves confusingly rather than erroring, which is why it is data here
+        # rather than something the caller passes.
+        #
+        #   the host preset is deliberately absent. A HOST build is an ordinary executable
+        # debugged with plain gdb -- there is no probe, no SVD and nothing for OpenOCD to do, and
+        # light-debug.ps1 refuses with that in mind rather than half-working.
+        Debug = @{
+                'conf-crossfire-debug'       = @{
+                        Config = 'openocd.cfg'
+                        Svd    = '../pico-sdk/src/rp2040/hardware_regs/RP2040.svd'
+                }
+                'conf-crossfire-pico2-debug' = @{
+                        Config = 'openocd-pico2.cfg'
+                        Svd    = '../pico-sdk/src/rp2350/hardware_regs/RP2350.svd'
+                }
+                #   trace and release are rp2040 builds of the same firmware, so they debug
+                # through the same config -- only the tree and the verbosity differ
+                'conf-crossfire-trace'       = @{
+                        Config = 'openocd.cfg'
+                        Svd    = '../pico-sdk/src/rp2040/hardware_regs/RP2040.svd'
+                }
+                'conf-crossfire-release'     = @{
+                        Config = 'openocd.cfg'
+                        Svd    = '../pico-sdk/src/rp2040/hardware_regs/RP2040.svd'
+                }
+        }
+
         Test = @{
                 Preset = 'conf-crossfire-host-debug'
                 Ctest  = $true
