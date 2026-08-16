@@ -5,11 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            //   no "rtos" setting: openocd.cfg no longer groups the two cores as an SMP
+            // hwthread pair, because examining core 1 at startup stalls this firmware -- core 1
+            // runs the message-drain worker and stops while holding the stream lock, after which
+            // core 0 blocks forever on its next log call. See openocd-pico2.cfg for the
+            // measurements. Core 1 is still reachable on demand; that file says how.
             "name": "cortex-debug launch",
             "type": "cortex-debug",
             "servertype": "openocd",
             //"showDevDebugOutput": "raw",
-            "rtos": "auto",
             "cwd": "${workspaceRoot}/build",
             "configFiles": ["${workspaceRoot}/openocd.cfg"],
             "svdFile": "${workspaceRoot}/../pico-sdk/src/rp2040/hardware_regs/rp2040.svd",
@@ -25,11 +29,11 @@
             }
         },
         {
+            // no "rtos" setting, for the same reason as the entry above
             "name": "cortex-debug launch (pico2)",
             "type": "cortex-debug",
             "servertype": "openocd",
             //"showDevDebugOutput": "raw",
-            "rtos": "auto",
             "cwd": "${workspaceRoot}/build-pico2",
             "configFiles": ["${workspaceRoot}/openocd-pico2.cfg"],
             "svdFile": "${workspaceRoot}/../pico-sdk/src/rp2350/hardware_regs/rp2350.svd",
