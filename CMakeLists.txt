@@ -40,14 +40,20 @@ add_subdirectory(module/rend)
 #   the display group -- core, panel drivers and backlight, previously four separate submodules
 # here (light_display, light_ioport, light_display_sh1107, light_display_po13) pinned at four
 # independent commits. Resolved by path now, defaulting to a sibling checkout at
-# ../light-display, so nothing here names a location.
+# ../light_display, so nothing here names a location.
 #
 #   this project links only the SH1107/po13 pair; the rest of the group's drivers are INTERFACE
 # libraries that compile nothing unless something links them, so their presence is free.
 #
 #   light_ioport is not listed: it moved into the framework and arrives with
 # add_subdirectory(${LIGHT_PATH}) above.
-light_resolve_project(LIGHT_DISPLAY light-display)
+#
+#   MARKER, because the group and one of its own modules share the name light_display. The
+# resolver looks for an in-project module/<name> before the sibling, and module/light_display is
+# exactly what a checkout of the MODULE would be called -- so without a marker that only the
+# group has, a stray module checkout would silently shadow the group and the build would fail
+# hunting for drivers that were never added.
+light_resolve_project(LIGHT_DISPLAY light_display MARKER module/light_display/CMakeLists.txt)
 add_subdirectory(${LIGHT_DISPLAY_PATH} light_display_group)
 
 add_subdirectory(module/light_canvas)
