@@ -1,0 +1,178 @@
+# Builds and tests crossfire on every push and pull request.
+#
+# Same shape as screen-test's workflow, and for the same reasons: it drives the project's own
+# scripts rather than calling cmake, so CI exercises the path developers use; and it lays the
+# dependencies out as siblings inside the workspace, which is exactly what light-env.ps1 and
+# light_resolve_project() already expect, so nothing needs configuring:
+#
+#     $GITHUB_WORKSPACE/
+#       crossfire/              <- this repository
+#       light_framework_mk3/    <- LIGHT_PATH
+#       light_display/          <- the display group
+#       font-crusher/           <- FONT_CRUSHER_PATH (supplies the `crush` font tool)
+#       pico-sdk/               <- PICO_SDK_PATH
+#
+# NOTE the firmware here is a superset of screen-test's difficulty: crossfire is a USB host as
+# well as a device, so its rp2040 build pulls in Pico-PIO-USB from tinyusb's own submodules.
+# That is why pico-sdk is checked out recursively here and not there.
+name: CI
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # pinned to the version used on the development machine -- see the note in screen-test's
+  # workflow; an embedded build is not toolchain-agnostic
+  ARM_TOOLCHAIN_VERSION: 14.2.rel1
+
+jobs:
+  host:
+    name: host tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: crossfire
+          submodules: recursive
+
+      - uses: actions/checkout@v4
+        with:
+          repository: lightsource-nz/light_framework_mk3
+          path: light_framework_mk3
+          submodules: recursive
+
+      - uses: actions/checkout@v4
+        with:
+          repository: lightsource-nz/light_display
+          path: light_display
+
+      - uses: actions/checkout@v4
+        with:
+          repository: lightsource-nz/font-crusher
+          path: font-crusher
+          submodules: recursive
+
+      #   needed even for the host job: this project's host configuration is pico_hostmode, a
+      # HOST build of the Pico SDK rather than a plain Linux one, because crossfire_forward_test
+      # includes hardware/gpio.h and will not compile without it
+      - uses: actions/checkout@v4
+        with:
+          repository: lightsource-nz/pico-sdk
+          ref: master
+          path: pico-sdk
+          submodules: recursive
+
+      - name: install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: test
+        working-directory: crossfire
+        shell: pwsh
+        run: ./scripts/test.ps1
+
+  firmware:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: rp2040 (Pico)
+            preset: conf-crossfire-debug
+            targets: crossfire_main
+            tree: build
+          - name: rp2350 (Pico 2)
+            preset: conf-crossfire-pico2-debug
+            targets: crossfire_main
+            tree: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: crossfire
+          submodules: recursive
+
+      - uses: actions/checkout@v4
+        with:
+          repository: lightsource-nz/light_framework_mk3
+          path: light_framework_mk3
+          submodules: recursive
+
+      - uses: actions/checkout@v4
+        with:
+          repository: lightsource-nz/light_display
+          path: light_display
+
+      - uses: actions/checkout@v4
+        with:
+          repository: lightsource-nz/font-crusher
+          path: font-crusher
+          submodules: recursive
+
+      #   recursive, unlike screen-test's: the USB host stack needs Pico-PIO-USB, which is a
+      # submodule OF tinyusb rather than of the SDK. Without it the build fails inside
+      # hcd_pio_usb.c on a missing header, naming a file nobody here wrote
+      - uses: actions/checkout@v4
+        with:
+          repository: lightsource-nz/pico-sdk
+          ref: master
+          path: pico-sdk
+          submodules: recursive
+
+      - name: install build tools
+        run: |
+          sudo apt-get update
+          # libusb + pkg-config are for picotool, which the SDK builds from source for the UF2s
+          sudo apt-get install -y ninja-build libusb-1.0-0-dev pkg-config
+
+      - name: cache arm toolchain
+        id: arm-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/tools/arm-gnu-toolchain
+          key: arm-gnu-toolchain-${{ env.ARM_TOOLCHAIN_VERSION }}-x86_64
+
+      # unpacked where light-env.ps1 already looks, so nothing teaches the scripts a new path
+      - name: install arm toolchain
+        if: steps.arm-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/tools
+          base="arm-gnu-toolchain-${ARM_TOOLCHAIN_VERSION}-x86_64-arm-none-eabi"
+          curl -fsSL --retry 3 \
+            "https://developer.arm.com/-/media/Files/downloads/gnu/${ARM_TOOLCHAIN_VERSION}/binrel/${base}.tar.xz" \
+            -o /tmp/arm.tar.xz
+          tar -xf /tmp/arm.tar.xz -C ~/tools
+          mv ~/tools/"$base" ~/tools/arm-gnu-toolchain
+
+      #   both firmware presets resolve to ${sourceDir}/build, so they cannot share a job: the
+      # second would reuse the first's cache for a different chip. Separate matrix legs get
+      # separate runners and therefore separate trees, which is why this is a matrix rather than
+      # two targets in one job.
+      - name: build
+        working-directory: crossfire
+        shell: pwsh
+        run: |
+          foreach ($t in "${{ matrix.targets }}".Split(' ', [StringSplitOptions]::RemoveEmptyEntries)) {
+                  ./scripts/build.ps1 -Target $t -Preset "${{ matrix.preset }}"
+          }
+
+      - name: upload images
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.preset }}
+          if-no-files-found: error
+          path: |
+            crossfire/${{ matrix.tree }}/module/*/*.uf2
+            crossfire/${{ matrix.tree }}/module/*/*.elf

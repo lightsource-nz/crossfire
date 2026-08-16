@@ -13,10 +13,12 @@
         },
         {
             "name": "conf-crossfire-host-debug",
+            "description": "The pico_hostmode build, and the only configuration that registers this project's tests. binaryDir is overridden because conf-crossfire-base points at ${sourceDir}/build, which the rp2040 and rp2350 firmware presets also use -- so configuring this one clobbered whichever firmware tree was there, and pointing the test runner at it found firmware and no tests. build-host is the directory that was already being configured by hand for exactly this reason.",
             "inherits": [
                 "conf-crossfire-base",
                 "conf-light-pico-host"
-            ]
+            ],
+            "binaryDir": "${sourceDir}/build-host"
         },
         {
             "name": "conf-crossfire-debug",

@@ -15,7 +15,9 @@
         Trees = @{
                 'conf-crossfire-debug'       = 'build'
                 'conf-crossfire-pico2-debug' = 'build'
-                'conf-crossfire-host-debug'  = 'build'
+                #   build-host, not build: this preset now overrides binaryDir so it stops
+                # colliding with the two firmware presets. It is the only tree with tests in it
+                'conf-crossfire-host-debug'  = 'build-host'
                 'conf-crossfire-trace'       = 'build-trace'
                 'conf-crossfire-release'     = 'build-release'
         }
