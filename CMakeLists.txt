@@ -31,10 +31,23 @@ project(crossfire C CXX ASM)
 add_subdirectory(${LIGHT_PATH}/ light_framework)
 
 # modules
-add_subdirectory(module/light_usb)
-add_subdirectory(module/light_usb_midi)
-add_subdirectory(module/light_usbhost)
-add_subdirectory(module/light_usbhost_midi)
+
+#   the USB group -- device core, host core and both MIDI class drivers. These were four
+# directories in this repository, which meant the only way to use USB in a second project was to
+# copy them; nothing in them is specific to crossfire. Resolved by path now, defaulting to a
+# sibling checkout at ../light_usb.
+#
+#   this project links light_usbhost_midi, which pulls the rest of the chain. The others cost
+# nothing regardless -- all four are INTERFACE libraries that compile nothing until linked.
+#
+#   MARKER for the same reason the display group needs one: the group and its core module share
+# the name light_usb, and the resolver prefers an in-project module/<name> over the sibling.
+# module/light_usb is exactly what a checkout of the MODULE would be called, and this repository
+# had one until the extraction. (The CMake targets do not collide -- the core module defines
+# light_usb_common -- so this is only about finding the right directory.)
+light_resolve_project(LIGHT_USB light_usb MARKER module/light_usb/CMakeLists.txt)
+add_subdirectory(${LIGHT_USB_PATH} light_usb_group)
+
 add_subdirectory(module/rend)
 
 #   the display group -- core, panel drivers and backlight, previously four separate submodules
