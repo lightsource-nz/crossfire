@@ -160,21 +160,107 @@ void cf_spi_link_init(void)
         rx_packet_len = 0;
 }
 
+//   IS THIS FOUR BYTES A PACKET, OR FOUR BYTES STARTING IN THE MIDDLE OF ONE?
+//
+//   The link is a byte stream that this side reassembles by counting to four, so a single lost
+// byte does not cost one packet -- it shifts the frame and every packet after it is garbage,
+// permanently. That is not hypothetical: it was measured, as 105 received bytes where 104 were
+// sent as 26 packets, and everything downstream one byte out of phase from then on.
+//
+//   THE CHECK IS FREE, because a USB-MIDI Event Packet already carries four bits of redundancy:
+//     - byte 0 is (cable << 4) | CIN, and this link presents exactly one cable, so the high
+//       nibble must be zero
+//     - CIN 0x0 and 0x1 are reserved by USB-MIDI 1.0 and never appear on the wire
+//     - for the channel-voice CINs, 0x8 to 0xE, byte 1 IS the MIDI status byte, and its high
+//       nibble repeats the CIN. Two independent copies of the same four bits, one byte apart.
+// Nothing is added to the wire format and no bandwidth is spent to get this.
+//
+//   it is a plausibility test, not a checksum: SysEx CINs (0x4 to 0x7) carry arbitrary data
+// bytes and offer no cross-check, so a misframed SysEx run can slip through. The idle flush
+// below is what catches those, and between them the stream converges rather than staying broken.
+static bool _packet_plausible(const uint8_t packet[4])
+{
+        uint8_t cin = packet[0] & 0x0F;
+
+        if((packet[0] >> 4) != 0)
+                return false;
+        if(cin < 0x2)
+                return false;
+        if(cin >= 0x8 && cin <= 0xE && (packet[1] >> 4) != cin)
+                return false;
+        return true;
+}
+
+//   how long a partial packet may sit before it is assumed to be wreckage. A whole packet crosses
+// in about 5us at this link's clock, and the scheduler polls on a 1ms tick, so any gap of several
+// milliseconds means the rest of that packet is never arriving -- bytes were lost, or the peer
+// restarted mid-burst. Keeping the fragment would splice it onto the head of the next packet.
+#define CF_LINK_IDLE_RESYNC_MS  5
+// resyncs are counted and reported at most once a second: a genuinely broken link would otherwise
+// log on every tick, burying the first occurrence, which is the one worth seeing
+#define CF_LINK_RESYNC_LOG_MS   1000
+
+static uint32_t rx_last_byte_ms;
+//   MONOTONIC, never reset. It was originally cleared each time it was logged, which made it
+// useless for exactly the thing a counter is for: inspecting it after the fact showed zero
+// whether nothing had gone wrong or a resync had happened and already been reported. The
+// separate 'reported' watermark is what rate-limits the logging instead.
+static uint32_t rx_resync_count;
+static uint32_t rx_resync_reported;
+static uint32_t rx_resync_logged_ms;
+
 bool cf_spi_link_packet_read(uint8_t packet[4])
 {
-        //   read_available() drains what the peripheral already holds and returns immediately,
-        // so this keeps its accumulate-across-calls shape: a slave has no say in when its master
-        // clocks bytes, and blocking a scheduler tick on a peer that may say nothing is exactly
-        // what this loop was written to avoid.
-        rx_packet_len += (uint8_t) light_ioport_read_available(link_in,
-                                        &rx_packet_buf[rx_packet_len], 4u - rx_packet_len);
-        if(rx_packet_len < 4)
-                return false;
+        uint32_t now = light_platform_get_time_since_init();
 
-        for(uint8_t i = 0; i < 4; i++)
-                packet[i] = rx_packet_buf[i];
-        rx_packet_len = 0;
-        return true;
+        if(rx_packet_len > 0 && (now - rx_last_byte_ms) > CF_LINK_IDLE_RESYNC_MS) {
+                rx_resync_count++;
+                rx_packet_len = 0;
+        }
+
+        for(;;) {
+                //   read_available() drains what has already arrived and returns immediately, so
+                // this keeps its accumulate-across-calls shape: a slave has no say in when its
+                // master clocks bytes, and blocking a scheduler tick on a peer that may be saying
+                // nothing at all is exactly what this was written to avoid.
+                uint32_t got = light_ioport_read_available(link_in,
+                                        &rx_packet_buf[rx_packet_len], 4u - rx_packet_len);
+                if(got) {
+                        rx_packet_len += (uint8_t) got;
+                        rx_last_byte_ms = now;
+                }
+                if(rx_packet_len < 4) {
+                        //   report here rather than at the point of detection: this is the exit
+                        // taken once the stream has gone quiet again, so the count has settled
+                        if(rx_resync_count != rx_resync_reported
+                                        && (now - rx_resync_logged_ms) > CF_LINK_RESYNC_LOG_MS) {
+                                light_warn("link: resynchronised %d time(s) so far; bytes were lost on the wire",
+                                                rx_resync_count);
+                                rx_resync_reported = rx_resync_count;
+                                rx_resync_logged_ms = now;
+                        }
+                        return false;
+                }
+
+                if(_packet_plausible(rx_packet_buf)) {
+                        for(uint8_t i = 0; i < 4; i++)
+                                packet[i] = rx_packet_buf[i];
+                        rx_packet_len = 0;
+                        return true;
+                }
+
+                //   SLIDE BY ONE BYTE, do not discard all four. The fault is an offset, so the
+                // real header is somewhere inside what is already held -- throwing the lot away
+                // would discard the very bytes that resynchronise the stream, and at a fixed four
+                // bytes per packet the frame would never recover on its own.
+                //   looping rather than returning means alignment is regained within this call
+                // while there is still data to consume, instead of one byte per scheduler tick.
+                rx_packet_buf[0] = rx_packet_buf[1];
+                rx_packet_buf[1] = rx_packet_buf[2];
+                rx_packet_buf[2] = rx_packet_buf[3];
+                rx_packet_len = 3;
+                rx_resync_count++;
+        }
 }
 
 void cf_spi_link_packet_write(const uint8_t packet[4])
