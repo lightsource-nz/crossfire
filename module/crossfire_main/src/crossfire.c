@@ -107,8 +107,13 @@ void crossfire_init()
 {
 
 #ifdef _HAVE_TINYUSB
-        // init tinyUSB board abstraction
-        board_init();
+        //   light_usb_init(), not board_init(). board_init() is TinyUSB's BSP entry point and
+        // exists only where a BSP does -- the Pico SDK ships one, bare CMSIS does not -- so
+        // calling it directly is what tied this file to RP2 at the very first line of USB setup.
+        //   light_usb_init() is the portable equivalent: it calls board_init() on the Pico path
+        // and performs the clock, pin, transceiver and interrupt bring-up on CMSIS. Exactly one
+        // of those happens, so this is the same single initialisation as before on RP2.
+        light_usb_init();
 
         _usbhost_init();
         light_info("tinyUSB host stack initialized","");
