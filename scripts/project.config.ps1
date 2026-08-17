@@ -56,6 +56,14 @@
                         Config = 'openocd-pico2.cfg'
                         Svd    = '../pico-sdk/src/rp2350/hardware_regs/RP2350.svd'
                 }
+                #   debugged over an ST-Link rather than CMSIS-DAP, and the only target here
+                # with no UF2 path at all -- SWD is how an image reaches this board.
+                #   no Svd: ST ships STM32H743.svd in their CMSIS pack rather than with the
+                # toolchain, and none is vendored, so peripheral views are unavailable until
+                # one is added. Everything else works without it.
+                'conf-crossfire-mini-stm32h7-debug' = @{
+                        Config = 'openocd-stm32h7.cfg'
+                }
                 #   trace and release are rp2040 builds of the same firmware, so they debug
                 # through the same config -- only the tree and the verbosity differ
                 'conf-crossfire-trace'       = @{
