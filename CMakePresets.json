@@ -68,7 +68,9 @@
                 "LIGHT_SYSTEM": "CMSIS",
                 "LIGHT_PLATFORM": "TARGET",
                 "LIGHT_BOARD": "mini_stm32h7",
-                "CROSSFIRE_ENABLE_DISPLAY": "OFF"
+                "CROSSFIRE_ENABLE_DISPLAY": "OFF",
+                "LIGHT_H743_DATA_REGION": "DTCM",
+                "LIGHT_H743_DCACHE": "ON"
             }
         },
         {
@@ -98,7 +100,9 @@
                 "LIGHT_PLATFORM": "TARGET",
                 "LIGHT_BOARD": "mini_stm32h7",
                 "CROSSFIRE_ENABLE_DISPLAY": "OFF",
-                "CROSSFIRE_ENABLE_SPI_LINK": "ON"
+                "CROSSFIRE_ENABLE_SPI_LINK": "ON",
+                "LIGHT_H743_DATA_REGION": "DTCM",
+                "LIGHT_H743_DCACHE": "ON"
             }
         },
         {
