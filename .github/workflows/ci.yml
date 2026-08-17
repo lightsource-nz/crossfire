@@ -49,10 +49,13 @@ jobs:
           #   the SPI-link rig. Its own leg because CROSSFIRE_ENABLE_SPI_LINK defaults OFF, so
           # every other configuration compiles crossfire_spi_link.c to nothing -- CI included,
           # which meant the file had no coverage at all on a fresh checkout
+          #   tree is build, not build-link: this preset shares ${sourceDir}/build with the other
+          # firmware presets rather than owning one, because a longer binaryDir overflows the
+          # Windows command-line limit at configure time. See the preset's own description.
           - name: rp2040 (SPI link rig)
             preset: conf-crossfire-link-debug
             targets: crossfire_main
-            tree: build-link
+            tree: build
     uses: lightsource-nz/light_framework_mk3/.github/workflows/project-build.yml@main
     with:
       project: crossfire
