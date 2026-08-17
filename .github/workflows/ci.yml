@@ -24,7 +24,7 @@ permissions:
 jobs:
   host:
     name: host tests
-    uses: lightsource-nz/light_framework_mk3/.github/workflows/project-test.yml@main
+    uses: lightsource-nz/light_framework_mk3/.github/workflows/project-test.yml@v1
     with:
       project: crossfire
       light_display: true
@@ -56,7 +56,7 @@ jobs:
             preset: conf-crossfire-link-debug
             targets: crossfire_main
             tree: build
-    uses: lightsource-nz/light_framework_mk3/.github/workflows/project-build.yml@main
+    uses: lightsource-nz/light_framework_mk3/.github/workflows/project-build.yml@v1
     with:
       project: crossfire
       preset: ${{ matrix.preset }}
