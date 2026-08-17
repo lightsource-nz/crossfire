@@ -21,7 +21,9 @@
                 #   shares build/ with the other firmware presets -- a longer tree name overflows
                 # the Windows command-line limit during configure; see the preset's description
                 'conf-crossfire-link-debug'  = 'build'
+                'conf-crossfire-link-pico2-debug' = 'build'
                 'conf-crossfire-mini-stm32h7-debug' = 'build-mini-stm32h7'
+                'conf-crossfire-link-stm32h7-debug' = 'build-mini-stm32h7'
                 'conf-crossfire-trace'       = 'build-trace'
                 'conf-crossfire-release'     = 'build-release'
         }
@@ -31,7 +33,9 @@
                 'conf-crossfire-pico2-debug' = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico2'; PICO_PLATFORM = 'rp2350-arm-s' }
                 'conf-crossfire-host-debug'  = @{ LIGHT_PLATFORM = 'HOST'; LIGHT_BOARD = 'pico_hostmode' }
                 'conf-crossfire-link-debug'  = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; CROSSFIRE_ENABLE_SPI_LINK = 'ON' }
+                'conf-crossfire-link-pico2-debug' = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico2'; CROSSFIRE_ENABLE_SPI_LINK = 'ON' }
                 'conf-crossfire-mini-stm32h7-debug' = @{ LIGHT_SYSTEM = 'CMSIS'; LIGHT_BOARD = 'mini_stm32h7' }
+                'conf-crossfire-link-stm32h7-debug' = @{ LIGHT_SYSTEM = 'CMSIS'; LIGHT_BOARD = 'mini_stm32h7'; CROSSFIRE_ENABLE_SPI_LINK = 'ON' }
                 'conf-crossfire-trace'       = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; LIGHT_RUN_MODE = 'TRACE' }
                 'conf-crossfire-release'     = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; LIGHT_RUN_MODE = 'PRODUCTION' }
         }
@@ -60,12 +64,19 @@
                         Config = 'openocd-pico2.cfg'
                         Svd    = '../pico-sdk/src/rp2350/hardware_regs/RP2350.svd'
                 }
+                'conf-crossfire-link-pico2-debug' = @{
+                        Config = 'openocd-pico2.cfg'
+                        Svd    = '../pico-sdk/src/rp2350/hardware_regs/RP2350.svd'
+                }
                 #   debugged over an ST-Link rather than CMSIS-DAP, and the only target here
                 # with no UF2 path at all -- SWD is how an image reaches this board.
                 #   no Svd: ST ships STM32H743.svd in their CMSIS pack rather than with the
                 # toolchain, and none is vendored, so peripheral views are unavailable until
                 # one is added. Everything else works without it.
                 'conf-crossfire-mini-stm32h7-debug' = @{
+                        Config = 'openocd-stm32h7.cfg'
+                }
+                'conf-crossfire-link-stm32h7-debug' = @{
                         Config = 'openocd-stm32h7.cfg'
                 }
                 #   trace and release are rp2040 builds of the same firmware, so they debug

@@ -72,6 +72,36 @@
             }
         },
         {
+            "name": "conf-crossfire-link-pico2-debug",
+            "description": "The SPI-link rig on an RP2350 Pico 2 rather than an rp2040. Same link pins -- GP17/18/19 carry SPI0 on both parts -- and the same shared ${sourceDir}/build for the reason described on conf-crossfire-link-debug.",
+            "inherits": [
+                "conf-crossfire-base",
+                "conf-light-pico2",
+                "conf-light-debug"
+            ],
+            "cacheVariables": {
+                "CROSSFIRE_ENABLE_SPI_LINK": "ON",
+                "CROSSFIRE_ENABLE_DISPLAY": "OFF"
+            }
+        },
+        {
+            "name": "conf-crossfire-link-stm32h7-debug",
+            "description": "The H743 with the SPI link enabled, for testing the link against a Pico peer. Shares build-mini-stm32h7 with the plain H7 preset -- light-configure.ps1's guard covers the collision, and a CMSIS tree is small enough that its directory name does not approach the Windows command-line limit the RP2 trees run into. Headless like the plain H7 build: the display is a Pico expansion board.",
+            "inherits": [
+                "conf-light-base",
+                "conf-light-debug"
+            ],
+            "binaryDir": "${sourceDir}/build-mini-stm32h7",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "LIGHT_SYSTEM": "CMSIS",
+                "LIGHT_PLATFORM": "TARGET",
+                "LIGHT_BOARD": "mini_stm32h7",
+                "CROSSFIRE_ENABLE_DISPLAY": "OFF",
+                "CROSSFIRE_ENABLE_SPI_LINK": "ON"
+            }
+        },
+        {
             "name": "conf-crossfire-trace",
             "description": "As conf-crossfire-debug but at TRACE verbosity. conf-light-pico is inherited because it supplies LIGHT_PLATFORM and LIGHT_BOARD, without which light_platform.cmake has no board to select a chip and toolchain from. Omitting it meant this preset could only configure by inheriting a board from whatever cache already occupied build/, so it appeared to work in a used tree and failed in a fresh one. CROSSFIRE_ENABLE_SPI_LINK is deliberately left at its default: that option builds the two-board SPI-linked test rig, which is not what a trace build of the ordinary firmware should be.",
             "inherits": [

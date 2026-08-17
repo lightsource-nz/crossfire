@@ -22,6 +22,43 @@
 // numbers. A port to another part supplies its own, written with LIGHT_IOPORT_PIN_STM32() on
 // STM32. What is portable is the transport, not the wiring.
 
+//   PORT IDS MEAN DIFFERENT THINGS PER PLATFORM, which is easy to miss when reading one branch.
+// On RP2 the id is light_ioport's PORT_SPI_n constant; on STM32 it is the SPI instance number
+// itself, so 2 is SPI2 -- screen-test's H7 display passes 4 for SPI4 the same way.
+#if(LIGHT_SYSTEM == SYSTEM_CMSIS)
+
+//   STM32H743 on the WeAct MiniSTM32H7xx. Both pin groups are checked against what the board
+// actually commits, taken from WeAct's own sources by way of Zephyr's board DTS rather than
+// guessed:
+//     QSPI flash   PB2, PB6, PD11, PD12, PD13, PE2
+//     SPI flash    PB3 (SCK), PB4 (MISO), PD7 (MOSI), PD6 (CS)
+//     SD card      PC8-PC12, PD2, PD4
+//     display      PE11-PE14 (ST7735, screen-test only)
+//     camera I2C   PB8, PB9
+//     console      PA9, PA10      USB  PA11, PA12      SWD  PA13, PA14
+//     LED PE3      KEY PC13
+//
+// IN link: this board is slave, driven by the peer's OUT link. SPI2 on PB12/13/15, which the
+// DTS shows unassigned -- no on-board peripheral touches them.
+#define CF_LINK_IN_PORT         2
+#define CF_LINK_IN_PIN_SCK      LIGHT_IOPORT_PIN_STM32('B', 13)
+#define CF_LINK_IN_PIN_MOSI     LIGHT_IOPORT_PIN_STM32('B', 15)
+#define CF_LINK_IN_PIN_CS       LIGHT_IOPORT_PIN_STM32('B', 12)
+
+//   OUT link: SPI4 on the DISPLAY's pins, which are free precisely because a crossfire build on
+// this board is headless -- the panel is a Pico expansion board that does not exist here. If a
+// display is ever added to an H7 crossfire, these two collide and this is the comment that says
+// so.
+//   NOT SPI3 on PB3-5, which was the first choice and was wrong: PB3 and PB4 are the on-board
+// SPI flash's clock and MISO. A master drives SCK unconditionally -- no chip select gates that --
+// so this side would have clocked the flash on every link write. PB3 is also TRACESWO.
+#define CF_LINK_OUT_PORT        4
+#define CF_LINK_OUT_PIN_SCK     LIGHT_IOPORT_PIN_STM32('E', 12)
+#define CF_LINK_OUT_PIN_MOSI    LIGHT_IOPORT_PIN_STM32('E', 14)
+#define CF_LINK_OUT_PIN_CS      LIGHT_IOPORT_PIN_STM32('E', 11)
+
+#else
+
 // OUT link: this board is master, drives the peer's IN link
 #define CF_LINK_OUT_PORT        PORT_SPI_0
 #define CF_LINK_OUT_PIN_SCK     18
@@ -34,10 +71,21 @@
 // (light_display_po13.h). display init is compiled out entirely whenever this link is
 // enabled, so that overlap isn't a live runtime conflict today, but there's no reason to
 // leave the coincidence in place when a non-overlapping pin group is just as available
+//   THE DATA PIN HERE IS GP12, NOT GP15, AND THAT IS NOT A TYPO. The RP2 SPI block names its
+// data pins RX and TX rather than MOSI/MISO, and which one carries the incoming data depends on
+// the role, not on the name: a master transmits on TX (GP19 on the OUT link above), while a
+// slave RECEIVES on RX. GP15 is spi1 TX, so naming it here muxed it as an OUTPUT that this
+// board drove against the peer's MOSI -- two drivers on one wire -- while the slave listened on
+// GP12, which nothing was connected to, and dutifully clocked in zeros. Bytes arrived with
+// perfect framing and every one of them was 0x00.
+//   the STM32 branch above does not have this trap because an STM32 SPI has dedicated MOSI and
+// MISO pins, so its slave input really is the pin called MOSI.
 #define CF_LINK_IN_PORT         PORT_SPI_1
 #define CF_LINK_IN_PIN_SCK      14
-#define CF_LINK_IN_PIN_MOSI     15
+#define CF_LINK_IN_PIN_MOSI     12
 #define CF_LINK_IN_PIN_CS       13
+
+#endif  // LIGHT_SYSTEM == SYSTEM_CMSIS
 
 // 4 bytes at any reasonable clock is sub-microsecond -- this just needs to be slow enough
 // for both boards' wiring to be reliable on a breadboard, not tuned for throughput
@@ -60,6 +108,12 @@ void cf_spi_link_init(void)
         link_out = light_ioport_setup_io_spi_3p(CF_LINK_OUT_PORT, LIGHT_IOPORT_PIN_NONE,
                                         CF_LINK_OUT_PIN_CS, CF_LINK_OUT_PIN_SCK, CF_LINK_OUT_PIN_MOSI);
         light_ioport_set_spi_clock(link_out, CF_LINK_BAUDRATE);
+        //   MODE 1, AND BOTH ENDS MUST AGREE. A packet is one 4-byte burst under a single CS
+        // assertion, and an RP2 SPI slave will only accept back-to-back frames like that with
+        // CPHA=1 -- in mode 0 it takes the CS edge as the frame start and delivers the first
+        // byte followed by zeros. Set on every context, master and slave, so the two boards
+        // stay in step regardless of which side a given build is.
+        light_ioport_set_spi_mode(link_out, LIGHT_IOPORT_SPI_MODE_1);
 
         // in slave mode the hardware itself uses the CS *input* to know when a
         // transaction starts/ends, so unlike the OUT link, CS here does need to be muxed
@@ -68,6 +122,10 @@ void cf_spi_link_init(void)
         // rate of its own. The link's speed is set by the OUT master above, on both boards.
         link_in = light_ioport_setup_io_spi_slave(CF_LINK_IN_PORT,
                                         CF_LINK_IN_PIN_CS, CF_LINK_IN_PIN_SCK, CF_LINK_IN_PIN_MOSI);
+        //   the slave needs the phase too. It has no clock of its own, which makes it tempting
+        // to assume the master imposes everything -- but CPHA decides which edge this end
+        // SAMPLES on, and no master can set that remotely.
+        light_ioport_set_spi_mode(link_in, LIGHT_IOPORT_SPI_MODE_1);
 
         rx_packet_len = 0;
 }
