@@ -1,7 +1,6 @@
 #ifdef CF_HAVE_SPI_LINK
 
-#include <hardware/gpio.h>
-#include <hardware/spi.h>
+#include <light_ioport.h>
 
 #include "crossfire_internal.h"
 
@@ -14,8 +13,17 @@
 // its SCK/MOSI (and likewise for IN), since RP2040 SPI pins aren't freely mixable across
 // the peripheral's alternate pin groups
 
+//   THROUGH light_ioport, not the Pico SDK directly. This used spi_init()/gpio_put()/
+// spi_get_hw()->dr, which pinned the whole feature -- and therefore crossfire -- to RP2. The
+// transport abstraction already existed for displays; what it lacked was a receiving role, so
+// IO_SPI_SLAVE was added rather than this file keeping its own private SPI driver.
+//
+//   PIN NUMBERS ARE STILL PLATFORM-SPECIFIC and always will be: these are flat RP2 GPIO
+// numbers. A port to another part supplies its own, written with LIGHT_IOPORT_PIN_STM32() on
+// STM32. What is portable is the transport, not the wiring.
+
 // OUT link: this board is master, drives the peer's IN link
-#define CF_LINK_OUT_SPI         spi0
+#define CF_LINK_OUT_PORT        PORT_SPI_0
 #define CF_LINK_OUT_PIN_SCK     18
 #define CF_LINK_OUT_PIN_MOSI    19
 #define CF_LINK_OUT_PIN_CS      17
@@ -26,7 +34,7 @@
 // (light_display_po13.h). display init is compiled out entirely whenever this link is
 // enabled, so that overlap isn't a live runtime conflict today, but there's no reason to
 // leave the coincidence in place when a non-overlapping pin group is just as available
-#define CF_LINK_IN_SPI          spi1
+#define CF_LINK_IN_PORT         PORT_SPI_1
 #define CF_LINK_IN_PIN_SCK      14
 #define CF_LINK_IN_PIN_MOSI     15
 #define CF_LINK_IN_PIN_CS       13
@@ -40,37 +48,37 @@
 static uint8_t rx_packet_buf[4];
 static uint8_t rx_packet_len;
 
+static struct io_context *link_out;
+static struct io_context *link_in;
+
 void cf_spi_link_init(void)
 {
-        spi_init(CF_LINK_OUT_SPI, CF_LINK_BAUDRATE);
-        spi_set_format(CF_LINK_OUT_SPI, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-        gpio_set_function(CF_LINK_OUT_PIN_SCK, GPIO_FUNC_SPI);
-        gpio_set_function(CF_LINK_OUT_PIN_MOSI, GPIO_FUNC_SPI);
-        // CS is driven manually rather than muxed to the peripheral, so a whole 4-byte
-        // burst can be held under one CS assertion via spi_write_blocking() -- same
-        // pattern already used for the display driver's bursts
-        gpio_init(CF_LINK_OUT_PIN_CS);
-        gpio_set_dir(CF_LINK_OUT_PIN_CS, true);
-        gpio_put(CF_LINK_OUT_PIN_CS, true);
+        //   the 3-pin master: SCK, MOSI, CS and no D/C, which is the display convention this
+        // link has no use for. light_ioport asserts CS around each burst, which is exactly the
+        // per-packet framing the receiving side relies on -- previously done by hand here.
+        //   LIGHT_IOPORT_PIN_NONE for reset: the far end is a peer, not a device to reset.
+        link_out = light_ioport_setup_io_spi_3p(CF_LINK_OUT_PORT, LIGHT_IOPORT_PIN_NONE,
+                                        CF_LINK_OUT_PIN_CS, CF_LINK_OUT_PIN_SCK, CF_LINK_OUT_PIN_MOSI);
+        light_ioport_set_spi_clock(link_out, CF_LINK_BAUDRATE);
 
         // in slave mode the hardware itself uses the CS *input* to know when a
         // transaction starts/ends, so unlike the OUT link, CS here does need to be muxed
         // to the peripheral rather than driven by software
-        spi_init(CF_LINK_IN_SPI, CF_LINK_BAUDRATE);
-        spi_set_slave(CF_LINK_IN_SPI, true);
-        spi_set_format(CF_LINK_IN_SPI, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-        gpio_set_function(CF_LINK_IN_PIN_SCK, GPIO_FUNC_SPI);
-        gpio_set_function(CF_LINK_IN_PIN_MOSI, GPIO_FUNC_SPI);
-        gpio_set_function(CF_LINK_IN_PIN_CS, GPIO_FUNC_SPI);
+        link_in = light_ioport_setup_io_spi_slave(CF_LINK_IN_PORT,
+                                        CF_LINK_IN_PIN_CS, CF_LINK_IN_PIN_SCK, CF_LINK_IN_PIN_MOSI);
+        light_ioport_set_spi_clock(link_in, CF_LINK_BAUDRATE);
 
         rx_packet_len = 0;
 }
 
 bool cf_spi_link_packet_read(uint8_t packet[4])
 {
-        while(rx_packet_len < 4 && spi_is_readable(CF_LINK_IN_SPI)) {
-                rx_packet_buf[rx_packet_len++] = (uint8_t) spi_get_hw(CF_LINK_IN_SPI)->dr;
-        }
+        //   read_available() drains what the peripheral already holds and returns immediately,
+        // so this keeps its accumulate-across-calls shape: a slave has no say in when its master
+        // clocks bytes, and blocking a scheduler tick on a peer that may say nothing is exactly
+        // what this loop was written to avoid.
+        rx_packet_len += (uint8_t) light_ioport_read_available(link_in,
+                                        &rx_packet_buf[rx_packet_len], 4u - rx_packet_len);
         if(rx_packet_len < 4)
                 return false;
 
@@ -82,9 +90,9 @@ bool cf_spi_link_packet_read(uint8_t packet[4])
 
 void cf_spi_link_packet_write(const uint8_t packet[4])
 {
-        gpio_put(CF_LINK_OUT_PIN_CS, false);
-        spi_write_blocking(CF_LINK_OUT_SPI, packet, 4);
-        gpio_put(CF_LINK_OUT_PIN_CS, true);
+        // one burst under one CS assertion, which light_ioport does itself -- the manual
+        // gpio_put() pair around the transfer is now the transport's business, not this file's
+        light_ioport_send_data_burst(link_out, packet, 4);
 }
 
 #endif // CF_HAVE_SPI_LINK

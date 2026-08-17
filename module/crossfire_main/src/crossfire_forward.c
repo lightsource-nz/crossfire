@@ -3,12 +3,29 @@
 #include <light.h>
 #include <light_platform.h>
 
-#include <hardware/gpio.h>
-
 #include "crossfire_internal.h"
 #include "crossfire_midi_backend.h"
 
+//   the activity LED. On the Pico this is the on-board LED; a flat RP2 GPIO number, as
+// light_platform's GPIO API takes (a port to STM32 supplies its own, via
+// LIGHT_IOPORT_PIN_STM32()).
 #define CF_MIDI_LED_PIN        25
+
+//   CONFIGURED ON FIRST USE, which it never was before. Nothing in this project ever set the
+// pin's direction: it worked only because TinyUSB's RP2040 BSP configures GP25 as its own board
+// LED, so board_init() happened to leave it an output. That is not a dependency worth keeping --
+// it makes the LED work on exactly the boards whose BSP shares our pin choice, and silently
+// nothing anywhere else.
+static void _midi_led_write(bool on)
+{
+        static bool configured;
+        if(!configured) {
+                light_platform_gpio_configure_output(CF_MIDI_LED_PIN, on);
+                configured = true;
+                return;
+        }
+        light_platform_gpio_write(CF_MIDI_LED_PIN, on);
+}
 
 struct cf_midi_device cf_midi_device[CF_MAX_DEVICES];
 struct cf_forward_list cf_forward_table[CF_MAX_DEVICES][CF_MAX_CABLES_PER_DEVICE];
@@ -170,7 +187,7 @@ void tuh_midi_mount_cb(uint8_t idx, const tuh_midi_mount_cb_t *mount_cb_data)
         light_info("USB-MIDI device mounted: idx=%d daddr=%d rx_cables=%d tx_cables=%d",
                         idx, mount_cb_data->daddr, mount_cb_data->rx_cable_count, mount_cb_data->tx_cable_count);
         cf_forward_table_rebuild();
-        gpio_put(CF_MIDI_LED_PIN, true);
+        _midi_led_write(true);
         crossfire_display_update_status();
 }
 void tuh_midi_umount_cb(uint8_t idx)
@@ -180,7 +197,7 @@ void tuh_midi_umount_cb(uint8_t idx)
         light_info("USB-MIDI device unmounted: idx=%d daddr=%d", idx, cf_midi_device[idx].daddr);
         cf_midi_device[idx].mounted = false;
         cf_forward_table_rebuild();
-        gpio_put(CF_MIDI_LED_PIN, false);
+        _midi_led_write(false);
         crossfire_display_update_status();
         // see crossfire_usbhost_request_reset()'s declaration for why this is needed --
         // works around a stale-hardware-state panic on RP2040's native USB host controller

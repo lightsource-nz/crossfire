@@ -23,7 +23,9 @@
 #define BUF_COUNT   4
 
 #ifdef _HAVE_TINYUSB
-#include <pico/time.h>
+//   no <pico/time.h>: the one thing it was included for was sleep_ms(), which
+// light_platform_sleep_ms() provides on every platform. light_platform.h comes in through
+// light.h, so nothing else is needed here.
 tusb_desc_device_t desc_device;
 #endif
 
@@ -273,7 +275,7 @@ void crossfire_task()
                 _usbhost_reset_pending = false;
                 light_info("resetting USB host controller after device disconnect","");
                 tusb_deinit(BOARD_TUH_RHPORT);
-                sleep_ms(100);
+                light_platform_sleep_ms(100);
                 _usbhost_init();
         }
 #endif
