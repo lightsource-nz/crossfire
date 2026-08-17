@@ -64,9 +64,10 @@ void cf_spi_link_init(void)
         // in slave mode the hardware itself uses the CS *input* to know when a
         // transaction starts/ends, so unlike the OUT link, CS here does need to be muxed
         // to the peripheral rather than driven by software
+        //   no set_spi_clock() on this one: a slave is clocked by the far end and has no baud
+        // rate of its own. The link's speed is set by the OUT master above, on both boards.
         link_in = light_ioport_setup_io_spi_slave(CF_LINK_IN_PORT,
                                         CF_LINK_IN_PIN_CS, CF_LINK_IN_PIN_SCK, CF_LINK_IN_PIN_MOSI);
-        light_ioport_set_spi_clock(link_in, CF_LINK_BAUDRATE);
 
         rx_packet_len = 0;
 }

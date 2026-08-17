@@ -46,6 +46,13 @@ jobs:
             preset: conf-crossfire-pico2-debug
             targets: crossfire_main
             tree: build
+          #   the SPI-link rig. Its own leg because CROSSFIRE_ENABLE_SPI_LINK defaults OFF, so
+          # every other configuration compiles crossfire_spi_link.c to nothing -- CI included,
+          # which meant the file had no coverage at all on a fresh checkout
+          - name: rp2040 (SPI link rig)
+            preset: conf-crossfire-link-debug
+            targets: crossfire_main
+            tree: build-link
     uses: lightsource-nz/light_framework_mk3/.github/workflows/project-build.yml@main
     with:
       project: crossfire
