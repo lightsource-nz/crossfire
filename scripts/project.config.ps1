@@ -18,6 +18,7 @@
                 #   build-host, not build: this preset now overrides binaryDir so it stops
                 # colliding with the two firmware presets. It is the only tree with tests in it
                 'conf-crossfire-host-debug'  = 'build-host'
+                'conf-crossfire-mini-stm32h7-debug' = 'build-mini-stm32h7'
                 'conf-crossfire-trace'       = 'build-trace'
                 'conf-crossfire-release'     = 'build-release'
         }
@@ -26,6 +27,7 @@
                 'conf-crossfire-debug'       = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; PICO_PLATFORM = 'rp2040' }
                 'conf-crossfire-pico2-debug' = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico2'; PICO_PLATFORM = 'rp2350-arm-s' }
                 'conf-crossfire-host-debug'  = @{ LIGHT_PLATFORM = 'HOST'; LIGHT_BOARD = 'pico_hostmode' }
+                'conf-crossfire-mini-stm32h7-debug' = @{ LIGHT_SYSTEM = 'CMSIS'; LIGHT_BOARD = 'mini_stm32h7' }
                 'conf-crossfire-trace'       = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; LIGHT_RUN_MODE = 'TRACE' }
                 'conf-crossfire-release'     = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; LIGHT_RUN_MODE = 'PRODUCTION' }
         }

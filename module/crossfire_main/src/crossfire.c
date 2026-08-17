@@ -5,14 +5,21 @@
 #include <light_usbhost_midi.h>
 
 #include <rend.h>
-#include <light_canvas.h>
+//   the display group is only on the include path when the build links it -- see
+// CROSSFIRE_ENABLE_DISPLAY. A headless target has no light_display_po13.h to find.
+//   light_ioport belongs in here too: every use of it in this file is display transport
+// (the panel's SPI port and its io_context), and headless it arrived only transitively
+// through light_display, so the include failed the moment that link went away.
+#ifdef CF_HAVE_DISPLAY
 #include <light_ioport.h>
+#include <light_canvas.h>
 #include <light_display.h>
 #include <light_display_po13.h>
 #include <light_display_sh1107.h>
 #include <module/mod_light_canvas.h>
 #include <module/mod_light_display.h>
 #include <module/mod_light_display_po13.h>
+#endif
 
 #include <TypeLightSans_ttf_16px_font.h>
 
@@ -37,6 +44,8 @@ uint8_t buf_owner[BUF_COUNT] = { 0 }; // device address that owns buffer
 // crossfire's onboard PIO-USB host ports 2 and 3 (GP6,9,10,11,12) -- confirmed
 // acceptable: nothing should be plugged into those two connectors while the display
 // is attached
+#ifdef CF_HAVE_DISPLAY
+// PORT_SPI_1 comes from light_ioport.h, which is only included when a display is built
 #define CF_DISPLAY_PORT_ID       PORT_SPI_1
 
 static struct rend_context *display_render;
@@ -45,17 +54,25 @@ static struct display_device *display_main;
 // single-buffered and unpaced deliberately: the panel is 1KB, and this display is driven by
 // events (a device mounting, a burst of MIDI) rather than by a clock
 static struct canvas_context *display_canvas;
+#endif
 
 #ifdef _HAVE_TINYUSB
 static volatile bool _usbhost_reset_pending = false;
 #endif
 
+#ifdef CF_HAVE_DISPLAY
 static void crossfire_display_init(void);
 static void crossfire_display_test_pattern(void);
+#endif
 
 static void crossfire_app_event(const struct light_module *mod, uint8_t event, void *arg);
 static uint8_t crossfire_app_main(struct light_application *app);
 
+//   the module dependency list has to be spelled twice rather than built up, because
+// Light_Application_Define() registers it through a linker section at compile time -- there is
+// no runtime list to append to. Naming a module here that the build did not link is a link
+// error, so the two lists must track CF_HAVE_DISPLAY exactly.
+#ifdef CF_HAVE_DISPLAY
 Light_Application_Define(
         crossfire, crossfire_app_event, crossfire_app_main,
         &light_usbhost_midi,
@@ -64,6 +81,16 @@ Light_Application_Define(
         &light_display,
         &light_display_po13
 );
+#else
+//   headless: USB-MIDI forwarding with console output and no panel. rend stays, because the
+// forwarding engine and status strings do not depend on a display existing -- only on drawing
+// to one, which is what is compiled out below.
+Light_Application_Define(
+        crossfire, crossfire_app_event, crossfire_app_main,
+        &light_usbhost_midi,
+        &rend
+);
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -127,7 +154,9 @@ void crossfire_init()
         cf_spi_link_init();
         cf_link_device_mount();
 #endif
+#ifdef CF_HAVE_DISPLAY
         crossfire_display_init();
+#endif
 }
 void crossfire_usbhost_request_reset(void)
 {
@@ -135,6 +164,11 @@ void crossfire_usbhost_request_reset(void)
         _usbhost_reset_pending = true;
 #endif
 }
+//   everything from here to the end of the redraw code exists only when a panel does. The two
+// entry points the rest of the program calls -- update_status() and update_indicators() -- keep
+// their symbols in both configurations (see the stubs after this block), so no caller needs a
+// guard of its own.
+#ifdef CF_HAVE_DISPLAY
 static void crossfire_display_init(void)
 {
         display_render = rend_context_create(
@@ -261,6 +295,15 @@ static void _crossfire_display_redraw(bool indicators_only)
         // why nothing here may block
         light_canvas_frame_end(display_canvas);
 }
+#else
+//   headless: the callers of these are the forwarding engine's mount/unmount paths and the
+// startup sequence, none of which should have to know whether a panel exists. Keeping the
+// symbols and emptying them puts that knowledge in exactly one place -- here -- instead of
+// spreading CF_HAVE_DISPLAY through crossfire_forward.c.
+void crossfire_display_update_status(void) { }
+void crossfire_display_update_indicators(void) { }
+#endif
+
 void crossfire_task()
 {
 #ifdef _HAVE_TINYUSB

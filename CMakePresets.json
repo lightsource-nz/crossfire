@@ -43,6 +43,22 @@
             }
         },
         {
+            "name": "conf-crossfire-mini-stm32h7-debug",
+            "description": "WeAct MiniSTM32H7xx (STM32H743VIT6) on bare CMSIS, headless. Inherits conf-light-base rather than conf-crossfire-base: that base carries conf-light-pico-base, which sets LIGHT_SYSTEM=PICO_SDK and a PICO_SDK_PATH, neither of which means anything here. The status display is off because it is a Pico-OLED-1.3 expansion board that plugs into a Pico header and does not exist on this target -- USB-MIDI forwarding and console output are what this build is for. TinyUSB is compiled from a checkout resolved by light_usb rather than supplied by an SDK; see that project's CMakeLists.",
+            "inherits": [
+                "conf-light-base",
+                "conf-light-debug"
+            ],
+            "binaryDir": "${sourceDir}/build-mini-stm32h7",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "LIGHT_SYSTEM": "CMSIS",
+                "LIGHT_PLATFORM": "TARGET",
+                "LIGHT_BOARD": "mini_stm32h7",
+                "CROSSFIRE_ENABLE_DISPLAY": "OFF"
+            }
+        },
+        {
             "name": "conf-crossfire-trace",
             "description": "As conf-crossfire-debug but at TRACE verbosity. conf-light-pico is inherited because it supplies LIGHT_PLATFORM and LIGHT_BOARD, without which light_platform.cmake has no board to select a chip and toolchain from. Omitting it meant this preset could only configure by inheriting a board from whatever cache already occupied build/, so it appeared to work in a used tree and failed in a fresh one. CROSSFIRE_ENABLE_SPI_LINK is deliberately left at its default: that option builds the two-board SPI-linked test rig, which is not what a trace build of the ordinary firmware should be.",
             "inherits": [
