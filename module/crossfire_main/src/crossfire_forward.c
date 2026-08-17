@@ -133,6 +133,23 @@ void cf_forward_service(void)
                 // slot -- same "loop until empty" contract the old stream-based version had
                 while(cf_device_packet_read(src_idx, packet)) {
                         cf_last_rx_ms = light_platform_get_time_since_init();
+                        //   DROP RESERVED CODE INDEX NUMBERS, which in practice means dropping
+                        // padding. A USB-MIDI bulk transfer carries 16 four-byte event slots and
+                        // a device that has only one event to send zero-fills the other 15; CIN
+                        // 0x0 and 0x1 are reserved by USB-MIDI 1.0 and never carry data, so a
+                        // zero-filled slot is padding rather than a message. Whether those slots
+                        // are handed back at all depends on the host stack -- the two TinyUSB
+                        // versions in use here differ, which is why this only showed up in one
+                        // direction: pico-sdk's bundled copy returns them, the standalone
+                        // checkout the H7 builds against does not.
+                        //   forwarding them was not harmless. Every padding slot was a 4-byte
+                        // burst on the inter-board SPI link, so up to 15 of every 16 bytes the
+                        // link carried were nothing at all, and the receiving end reassembled
+                        // them into packets and passed them on as MIDI. It only became visible
+                        // once the link started checking that what it assembled was plausible.
+                        uint8_t cin = packet[0] & 0x0F;
+                        if(cin < 0x2)
+                                continue;
                         uint8_t cable_num = packet[0] >> 4;
                         if(cable_num >= CF_MAX_CABLES_PER_DEVICE)
                                 continue;
