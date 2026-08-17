@@ -107,6 +107,11 @@
 static uint8_t rx_packet_buf[4];
 static uint8_t rx_packet_len;
 
+//   the link's receive ring, handed to light_ioport at init (see cf_spi_link_init()). Sized a
+// power of two because the ring indexes with a mask, and 256 is 64 packets -- far more slack than
+// the scheduler's 1ms poll interval needs. Static because an interrupt writes it.
+static uint8_t rx_ring[256];
+
 static struct io_context *link_out;
 static struct io_context *link_in;
 
@@ -137,6 +142,20 @@ void cf_spi_link_init(void)
         // to assume the master imposes everything -- but CPHA decides which edge this end
         // SAMPLES on, and no master can set that remotely.
         light_ioport_set_spi_mode(link_in, LIGHT_IOPORT_SPI_MODE_1);
+
+        //   BUFFER THE RECEIVE SIDE, because the peripheral's own FIFO is not enough to survive
+        // this run loop. The FIFO holds 8 bytes on RP2, which at the link's clock is about 11us,
+        // while periodic tasks are polled on a 1ms tick -- so any tick that runs long loses
+        // packets, and raising the clock earlier made that window narrower rather than wider.
+        // A slave cannot ask its peer to wait, and this link carries no checksum, so what is lost
+        // is lost silently.
+        //   256 bytes is ~23ms of headroom, comfortably more than any poll interval here, and 64
+        // whole packets. Static rather than allocated because it is handed to an interrupt and
+        // must outlive every caller.
+        //   this reports false on platforms without an implementation (the H7, today), which is
+        // not fatal: the context simply keeps reading its FIFO exactly as before.
+        if(!light_ioport_spi_slave_set_rx_buffer(link_in, rx_ring, sizeof(rx_ring)))
+                light_info("link receive is unbuffered on this platform; a slow tick can drop packets","");
 
         rx_packet_len = 0;
 }
