@@ -87,9 +87,20 @@
 
 #endif  // LIGHT_SYSTEM == SYSTEM_CMSIS
 
-// 4 bytes at any reasonable clock is sub-microsecond -- this just needs to be slow enough
-// for both boards' wiring to be reliable on a breadboard, not tuned for throughput
-#define CF_LINK_BAUDRATE        (1 * 1000 * 1000)
+//   8MHz, raised from 1MHz. The sends are BLOCKING and a packet is only 4 bytes, so the rate
+// translates directly into CPU time held by each forwarded packet: 1MHz meant ~41us of spinning
+// per packet on both boards, and 4 bytes is far too small for DMA to pay back its setup, so the
+// clock is the only lever there is.
+//   THE CEILING IS THE RECEIVING END, NOT THE WIRE. An RP2 slave is a PL022, which requires its
+// peripheral clock to be at least 12x SCK -- clk_peri is 150MHz on the Pico 2 (read off the
+// board, not assumed), putting the hard limit at 12.5MHz. 8MHz sits comfortably under that and
+// leaves room for a slower clk_peri on an RP2040 peer.
+//   the achieved rates differ per platform because both dividers are powers of two from
+// different kernel clocks: the RP2 master lands on 8MHz exactly, the H743's SPI4 on 6.25MHz
+// (100MHz APB2 / 16). Both are what light_ioport_set_spi_clock() reports back.
+//   if this ever proves marginal on breadboard jumpers, lowering it is the first thing to try --
+// the link has no error detection, so marginal wiring shows up as corrupt MIDI, not as an error.
+#define CF_LINK_BAUDRATE        (8 * 1000 * 1000)
 
 // accumulates across cf_spi_link_packet_read() calls -- a whole 4-byte burst will
 // virtually always complete within one scheduler tick, but this doesn't assume that
