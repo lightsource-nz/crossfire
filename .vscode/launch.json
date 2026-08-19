@@ -34,6 +34,20 @@
             "type": "cortex-debug",
             "servertype": "openocd",
             //"showDevDebugOutput": "raw",
+            //   build-pico2, which the rp2350 presets now actually produce: both
+            // conf-crossfire-pico2-debug and conf-crossfire-link-pico2-debug override
+            // conf-crossfire-base's ${sourceDir}/build to take a tree of their own, so this
+            // config and the rp2040 one above no longer point at the same directory and the two
+            // chips' builds can coexist.
+            //
+            //   THIS DIRECTORY MUST EXIST. A missing cwd makes Node's spawn() fail with ENOENT,
+            // and the error names the PROGRAM rather than the directory: "Could not start GDB
+            // process, does the program exist in filesystem? Error: spawn
+            // ...arm-none-eabi-gdb.exe ENOENT", preceded by the identical complaint about
+            // arm-none-eabi-nm.exe. Both binaries are present and runnable; neither is what is
+            // missing, and no amount of checking the toolchain path finds anything wrong. That
+            // is exactly what this line said before the presets were changed to match it --
+            // it named build-pico2 while nothing built into build-pico2.
             "cwd": "${workspaceRoot}/build-pico2",
             "configFiles": ["${workspaceRoot}/openocd-pico2.cfg"],
             "svdFile": "${workspaceRoot}/../pico-sdk/src/rp2350/hardware_regs/rp2350.svd",

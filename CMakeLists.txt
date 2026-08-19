@@ -6,14 +6,14 @@ endif()
 set(LIGHT_PATH "${CMAKE_CURRENT_LIST_DIR}/../light_framework_mk3" CACHE PATH "path to the root directory of the light-framework project")
 get_filename_component(LIGHT_PATH "${LIGHT_PATH}" REALPATH BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
-#   rend also declares FONT_CRUSHER_PATH, but defaults it relative to ITSELF -- and rend lives
-# at module/rend here, so its guess lands on crossfire/module/font-crusher and misses a checkout
-# sitting beside this project. Findcrush.cmake then quietly fetches font-crusher from GitHub, so
-# edits to the local crush tooling silently have no effect on this build. Every build tree in
-# this repo is currently in exactly that state, with FONT_CRUSHER_PATH pointing into _deps.
+#   light_draw (vendored inside the light_display group, resolved below as module/light_draw)
+# also declares FONT_CRUSHER_PATH, but defaults it relative to ITSELF -- two directories deeper
+# than light_display's own root, so its guess only lands correctly when light_display resolves
+# as a proper sibling checkout. Findcrush.cmake otherwise quietly fetches font-crusher from
+# GitHub instead, so edits to the local crush tooling silently have no effect on this build.
 #   resolved here first, as a sibling of the project root, matching what screen-test does. Must
 # be CACHE: creating a cache entry removes a normal variable of the same name, so an uncached
-# value here would be discarded the moment rend is added and rend's guess would win anyway
+# value here would be discarded the moment light_draw is added and its own guess would win anyway
 if(DEFINED ENV{FONT_CRUSHER_PATH} AND (NOT FONT_CRUSHER_PATH))
     set(FONT_CRUSHER_PATH "$ENV{FONT_CRUSHER_PATH}" CACHE PATH "path to the root directory of the font-crusher project")
 endif()
@@ -47,8 +47,6 @@ add_subdirectory(${LIGHT_PATH}/ light_framework)
 # light_usb_common -- so this is only about finding the right directory.)
 light_resolve_project(LIGHT_USB light_usb MARKER module/light_usb/CMakeLists.txt)
 add_subdirectory(${LIGHT_USB_PATH} light_usb_group)
-
-add_subdirectory(module/rend)
 
 #   the display group -- core, panel drivers and backlight, previously four separate submodules
 # here (light_display, light_ioport, light_display_sh1107, light_display_po13) pinned at four

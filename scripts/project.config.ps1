@@ -1,9 +1,9 @@
 # Per-project defaults for crossfire.
 #
-# NOTE all six committed presets resolve to ${sourceDir}/build, which is why three of the four
-# trees on disk (build-host, build-link, build-pico2) were configured by hand -- there was no
-# other way to keep an rp2040 and an rp2350 configuration alive at the same time. They are
-# recorded here so the scripts can find them.
+# NOTE the firmware presets are split by chip: rp2040 into build/, rp2350 into build-pico2/.
+# Every one of them used to resolve to ${sourceDir}/build, so only one chip's configuration
+# could exist at a time and switching boards meant a -Force reconfigure every time. The presets
+# carry the split now. build-link is the one tree left that no preset produces.
 #
 # ALSO: every crossfire tree currently has FONT_CRUSHER_PATH pointing into _deps at a copy of
 # font-crusher fetched from GitHub, because crossfire's CMakeLists lacks the sibling-checkout
@@ -13,15 +13,20 @@
         Name = 'crossfire'
 
         Trees = @{
+                #   SPLIT BY CHIP: the rp2040 presets own build/, the rp2350 ones own
+                # build-pico2/. Both used to resolve to build/, so keeping an rp2040 and an
+                # rp2350 configuration alive at once meant configuring one of them by hand --
+                # which is exactly what had happened, and why this file used to describe
+                # build-pico2 as a hand-made tree the scripts merely knew about. The two
+                # configurations OF one chip still share a tree and still take turns under
+                # light-configure.ps1's collision guard
                 'conf-crossfire-debug'       = 'build'
-                'conf-crossfire-pico2-debug' = 'build'
+                'conf-crossfire-link-debug'  = 'build'
+                'conf-crossfire-pico2-debug' = 'build-pico2'
+                'conf-crossfire-link-pico2-debug' = 'build-pico2'
                 #   build-host, not build: this preset now overrides binaryDir so it stops
                 # colliding with the two firmware presets. It is the only tree with tests in it
                 'conf-crossfire-host-debug'  = 'build-host'
-                #   shares build/ with the other firmware presets -- a longer tree name overflows
-                # the Windows command-line limit during configure; see the preset's description
-                'conf-crossfire-link-debug'  = 'build'
-                'conf-crossfire-link-pico2-debug' = 'build'
                 'conf-crossfire-mini-stm32h7-debug' = 'build-mini-stm32h7'
                 'conf-crossfire-link-stm32h7-debug' = 'build-mini-stm32h7'
                 'conf-crossfire-trace'       = 'build-trace'

@@ -1689,7 +1689,7 @@ static const uint8_t glyph_0x3f[] = {
         0x00, 0x00,
 };
 
-static const uint8_t *const glyph_table[REND_FONT_GLYPH_TABLE_SIZE] = {
+static const uint8_t *const glyph_table[LIGHT_DRAW_FONT_GLYPH_TABLE_SIZE] = {
         [0x41] = glyph_0x41,
         [0x42] = glyph_0x42,
         [0x43] = glyph_0x43,
@@ -1786,7 +1786,7 @@ static const uint8_t *const glyph_table[REND_FONT_GLYPH_TABLE_SIZE] = {
         [0x3f] = glyph_0x3f,
 };
 
-const rend_font_t TypeLightSans_ttf_16px_font = {
+const light_draw_font_t TypeLightSans_ttf_16px_font = {
         .glyphs = glyph_table,
         .char_width = 12,
         .char_height = 19,

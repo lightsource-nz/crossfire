@@ -4,7 +4,7 @@
 #include <module/mod_usbhost_midi.h>
 #include <light_usbhost_midi.h>
 
-#include <rend.h>
+#include <light_draw.h>
 //   the display group is only on the include path when the build links it -- see
 // CROSSFIRE_ENABLE_DISPLAY. A headless target has no light_display_po13.h to find.
 //   light_ioport belongs in here too: every use of it in this file is display transport
@@ -48,7 +48,7 @@ uint8_t buf_owner[BUF_COUNT] = { 0 }; // device address that owns buffer
 // PORT_SPI_1 comes from light_ioport.h, which is only included when a display is built
 #define CF_DISPLAY_PORT_ID       PORT_SPI_1
 
-static struct rend_context *display_render;
+static struct light_draw_context *display_render;
 static struct display_device *display_main;
 // owns the buffer handling and the region flushing that this file used to do by hand. left
 // single-buffered and unpaced deliberately: the panel is 1KB, and this display is driven by
@@ -76,19 +76,19 @@ static uint8_t crossfire_app_main(struct light_application *app);
 Light_Application_Define(
         crossfire, crossfire_app_event, crossfire_app_main,
         &light_usbhost_midi,
-        &rend,
+        &light_draw,
         &light_canvas,
         &light_display,
         &light_display_po13
 );
 #else
-//   headless: USB-MIDI forwarding with console output and no panel. rend stays, because the
+//   headless: USB-MIDI forwarding with console output and no panel. light_draw stays, because the
 // forwarding engine and status strings do not depend on a display existing -- only on drawing
 // to one, which is what is compiled out below.
 Light_Application_Define(
         crossfire, crossfire_app_event, crossfire_app_main,
         &light_usbhost_midi,
-        &rend
+        &light_draw
 );
 #endif
 
@@ -171,14 +171,14 @@ void crossfire_usbhost_request_reset(void)
 #ifdef CF_HAVE_DISPLAY
 static void crossfire_display_init(void)
 {
-        display_render = rend_context_create(
+        display_render = light_draw_context_create(
                 "crossfire_display", PO13_WIDTH, PO13_HEIGHT, 1);
-        rend_context_set_font(display_render, &TypeLightSans_ttf_16px_font);
+        light_draw_context_set_font(display_render, &TypeLightSans_ttf_16px_font);
         // the panel is physically 64 wide x 128 tall, but text reads better run along
         // the long (128px) side -- rotate so the logical canvas callers draw against is
         // 128 wide x 64 tall instead; the SH1107 driver and PO13_WIDTH/HEIGHT are
-        // unaffected, since rotation is purely a rend-side coordinate transform
-        rend_context_set_rotation(display_render, REND_ROTATE_90);
+        // unaffected, since rotation is purely a light_draw-side coordinate transform
+        light_draw_context_set_rotation(display_render, LIGHT_DRAW_ROTATE_90);
 
 #ifdef CF_HAVE_SPI_LINK
         struct io_context *display_io = light_display_po13_setup_io_pio_spi_4p(PORT_PIO_SPI_0);
@@ -240,7 +240,7 @@ static void _crossfire_display_redraw(bool indicators_only)
         if(!light_canvas_frame_begin(display_canvas))
                 return;
 
-        // rend has no partial-region clear, so the whole buffer is cleared and both
+        // light_draw has no partial-region clear, so the whole buffer is cleared and both
         // lines redrawn together rather than trying to erase just the device count.
         // with the 90 degree rotation set in crossfire_display_init(), the logical
         // canvas here is 128 wide x 64 tall (TypeLightSans_ttf_16px_font is 12px/char
@@ -249,7 +249,7 @@ static void _crossfire_display_redraw(bool indicators_only)
         // the font was rendered specifically for this panel's geometry (64x128 pixels
         // across its real 17.2x32.3mm glass, not an assumed square-pixel display) --
         // see font-crusher's 'po13' display object and the cmd_render_new__po13 test
-        rend_draw_text(display_render, (rend_point2d) {0, 0}, "Crossfire");
+        light_draw_draw_text(display_render, (light_draw_point2d) {0, 0}, "Crossfire");
 
 #ifdef CF_HAVE_MIDI_BACKEND
         uint8_t mounted_count = 0;
@@ -259,23 +259,23 @@ static void _crossfire_display_redraw(bool indicators_only)
         }
         uint8_t status_line[16];
         snprintf((char *)status_line, sizeof(status_line), "devices: %u", mounted_count);
-        rend_draw_text(display_render, (rend_point2d) {0, TypeLightSans_ttf_16px_font.char_height}, status_line);
+        light_draw_draw_text(display_render, (light_draw_point2d) {0, TypeLightSans_ttf_16px_font.char_height}, status_line);
 
         // unlabeled, since there's not much room to spare once the two text lines above
         // already use 2*char_height=38 of the 64px-tall logical canvas. only drawn while
-        // cf_activity_indicators_service() considers that direction active -- rend has no
+        // cf_activity_indicators_service() considers that direction active -- light_draw has no
         // partial-region clear, so like the rest of this function, "off" just means not
         // drawing it into the freshly-cleared buffer
         if(cf_rx_indicator_active()) {
-                rend_draw_rect(display_render,
-                        (rend_point2d) {0, CF_INDICATOR_Y},
-                        (rend_point2d) {CF_INDICATOR_SIZE, CF_INDICATOR_Y + CF_INDICATOR_SIZE},
+                light_draw_draw_rect(display_render,
+                        (light_draw_point2d) {0, CF_INDICATOR_Y},
+                        (light_draw_point2d) {CF_INDICATOR_SIZE, CF_INDICATOR_Y + CF_INDICATOR_SIZE},
                         true);
         }
         if(cf_tx_indicator_active()) {
-                rend_draw_rect(display_render,
-                        (rend_point2d) {CF_INDICATOR_TX_X, CF_INDICATOR_Y},
-                        (rend_point2d) {CF_INDICATOR_RIGHT, CF_INDICATOR_Y + CF_INDICATOR_SIZE},
+                light_draw_draw_rect(display_render,
+                        (light_draw_point2d) {CF_INDICATOR_TX_X, CF_INDICATOR_Y},
+                        (light_draw_point2d) {CF_INDICATOR_RIGHT, CF_INDICATOR_Y + CF_INDICATOR_SIZE},
                         true);
         }
 #endif
@@ -286,8 +286,8 @@ static void _crossfire_display_redraw(bool indicators_only)
         // same CF_INDICATOR_* geometry the drawing above uses, so the two cannot drift
         if(indicators_only)
                 light_canvas_invalidate(display_canvas,
-                        (rend_point2d) {0, CF_INDICATOR_Y},
-                        (rend_point2d) {CF_INDICATOR_RIGHT, CF_INDICATOR_Y + CF_INDICATOR_SIZE});
+                        (light_draw_point2d) {0, CF_INDICATOR_Y},
+                        (light_draw_point2d) {CF_INDICATOR_RIGHT, CF_INDICATOR_Y + CF_INDICATOR_SIZE});
         else
                 light_canvas_invalidate_all(display_canvas);
 

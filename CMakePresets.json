@@ -33,11 +33,13 @@
         },
         {
             "name": "conf-crossfire-pico2-debug",
+            "description": "The rp2350 (Pico 2) firmware build. binaryDir is overridden so the RP2350 presets keep a tree of their own instead of sharing ${sourceDir}/build with the rp2040 ones: two different chips in one directory means switching boards always reconfigures from an incompatible cache, and light-configure.ps1's guard turns that into a -Force every time rather than letting both builds simply coexist. See conf-crossfire-link-debug for the command-line-length problem a longer tree name can cause on an RP2 tree -- 'build-pico2' was configured and built to confirm it stays under that limit.",
             "inherits": [
                 "conf-crossfire-base",
                 "conf-light-pico2",
                 "conf-light-debug"
             ],
+            "binaryDir": "${sourceDir}/build-pico2",
             "cacheVariables": {
                 "CROSSFIRE_ENABLE_SPI_LINK": "ON"
             }
@@ -75,12 +77,13 @@
         },
         {
             "name": "conf-crossfire-link-pico2-debug",
-            "description": "The SPI-link rig on an RP2350 Pico 2 rather than an rp2040. Same link pins -- GP17/18/19 carry SPI0 on both parts -- and the same shared ${sourceDir}/build for the reason described on conf-crossfire-link-debug.",
+            "description": "The SPI-link rig on an RP2350 Pico 2 rather than an rp2040. Same link pins -- GP17/18/19 carry SPI0 on both parts. Shares ${sourceDir}/build-pico2 with conf-crossfire-pico2-debug, which is the same arrangement the rp2040 presets have in ${sourceDir}/build: the split is by CHIP, so an rp2040 tree and an rp2350 tree can both exist, while the two configurations of one chip still take turns under light-configure.ps1's collision guard.",
             "inherits": [
                 "conf-crossfire-base",
                 "conf-light-pico2",
                 "conf-light-debug"
             ],
+            "binaryDir": "${sourceDir}/build-pico2",
             "cacheVariables": {
                 "CROSSFIRE_ENABLE_SPI_LINK": "ON",
                 "CROSSFIRE_ENABLE_DISPLAY": "OFF"

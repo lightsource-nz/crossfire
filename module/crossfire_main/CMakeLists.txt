@@ -33,7 +33,7 @@ option(CROSSFIRE_ENABLE_DISPLAY "Build crossfire_main with the Pico-OLED-1.3 sta
 target_link_libraries(
         crossfire_main PUBLIC
         light_usbhost_midi
-        rend
+        light_draw
 )
 
 if(CROSSFIRE_ENABLE_DISPLAY)
