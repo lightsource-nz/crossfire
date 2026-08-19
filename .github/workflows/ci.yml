@@ -45,7 +45,9 @@ jobs:
           - name: rp2350 (Pico 2)
             preset: conf-crossfire-pico2-debug
             targets: crossfire_main
-            tree: build
+            #   build-pico2, not build: conf-crossfire-pico2-debug overrides binaryDir so the
+            # RP2350 tree coexists with the rp2040 one, and the upload glob follows `tree`
+            tree: build-pico2
           #   the SPI-link rig. Its own leg because CROSSFIRE_ENABLE_SPI_LINK defaults OFF, so
           # every other configuration compiles crossfire_spi_link.c to nothing -- CI included,
           # which meant the file had no coverage at all on a fresh checkout
