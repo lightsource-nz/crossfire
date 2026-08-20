@@ -67,7 +67,17 @@ add_subdirectory(${LIGHT_USB_PATH} light_usb_group)
 light_resolve_project(LIGHT_DISPLAY light_display MARKER module/light_display/CMakeLists.txt)
 add_subdirectory(${LIGHT_DISPLAY_PATH} light_display_group)
 
-add_subdirectory(module/light_canvas)
+#   the UI group, for light_canvas -- which used to be this project's one remaining module
+# submodule, vendored here while the same module lived in the group screen-test consumes. Two
+# copies of one module is exactly the split-brain that once left this project pinning a
+# light_canvas commit that existed on no remote, so the group is the single source now. The
+# rest of the group's modules are INTERFACE libraries and cost nothing unlinked, the same
+# argument the display group makes. Added after the display group because light_canvas
+# presents through light_display. Same MARKER reasoning as above: the group and its widget
+# module share the name light_ui.
+light_resolve_project(LIGHT_UI light_ui MARKER module/light_ui/CMakeLists.txt)
+add_subdirectory(${LIGHT_UI_PATH} light_ui_group)
+
 add_subdirectory(module/crossfire_main)
 
 if(LIGHT_PLATFORM STREQUAL HOST)

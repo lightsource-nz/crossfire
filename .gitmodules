@@ -1,6 +1,3 @@
 [submodule "cmake/light_presets"]
 	path = cmake/light_presets
 	url = https://github.com/lightsource-nz/light_presets.git
-[submodule "module/light_canvas"]
-	path = module/light_canvas
-	url = https://github.com/lightsource-nz/light_canvas.git

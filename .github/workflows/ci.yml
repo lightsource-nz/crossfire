@@ -28,6 +28,7 @@ jobs:
     with:
       project: crossfire
       light_display: true
+      light_ui: true
       light_usb: true
       font_crusher: true
       pico_sdk: true
@@ -65,6 +66,7 @@ jobs:
       targets: ${{ matrix.targets }}
       tree: ${{ matrix.tree }}
       light_display: true
+      light_ui: true
       light_usb: true
       font_crusher: true
       pico_sdk: true
