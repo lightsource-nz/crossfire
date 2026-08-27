@@ -63,6 +63,18 @@ void cf_activity_indicators_service(void)
         crossfire_display_update_indicators();
 }
 
+uint8_t cf_usb_mounted_count(void)
+{
+        uint8_t count = 0;
+        // CF_MAX_DEVICES_USB, not CF_MAX_DEVICES: the SPI link's reserved slot lives past the
+        // end of this range and is not on the USB bus at all
+        for(uint8_t idx = 0; idx < CF_MAX_DEVICES_USB; idx++) {
+                if(cf_midi_device[idx].mounted && cf_midi_device[idx].kind == CF_DEVICE_KIND_USB)
+                        count++;
+        }
+        return count;
+}
+
 void cf_forward_table_rebuild(void)
 {
         for(uint8_t src_idx = 0; src_idx < CF_MAX_DEVICES; src_idx++) {
@@ -192,9 +204,14 @@ void cf_link_device_mount(void)
 }
 #endif
 
+//   CF_MAX_DEVICES_USB, not CF_MAX_DEVICES. The two are the same number until the SPI link is
+// compiled in, and then CF_MAX_DEVICES is one larger -- and that extra slot is the link's, not
+// something a USB mount callback may ever land in. tinyusb cannot hand out an index that high
+// (CFG_TUH_MIDI is CF_MAX_DEVICES_USB), so this is a guard against the two constants drifting,
+// not against tinyusb
 void tuh_midi_mount_cb(uint8_t idx, const tuh_midi_mount_cb_t *mount_cb_data)
 {
-        if(idx >= CF_MAX_DEVICES)
+        if(idx >= CF_MAX_DEVICES_USB)
                 return;
         cf_midi_device[idx].mounted = true;
         cf_midi_device[idx].kind = CF_DEVICE_KIND_USB;
@@ -203,23 +220,40 @@ void tuh_midi_mount_cb(uint8_t idx, const tuh_midi_mount_cb_t *mount_cb_data)
         cf_midi_device[idx].tx_cable_count = mount_cb_data->tx_cable_count;
         light_info("USB-MIDI device mounted: idx=%d daddr=%d rx_cables=%d tx_cables=%d",
                         idx, mount_cb_data->daddr, mount_cb_data->rx_cable_count, mount_cb_data->tx_cable_count);
+#ifdef CF_HAVE_USB_HUB
+        // after the slot is filled in, since the port map is keyed by the same index and
+        // cf_hub_port_occupied() reads .mounted back
+        cf_hub_device_attached(idx, mount_cb_data->daddr);
+#endif
         cf_forward_table_rebuild();
         _midi_led_write(true);
         crossfire_display_update_status();
 }
 void tuh_midi_umount_cb(uint8_t idx)
 {
-        if(idx >= CF_MAX_DEVICES)
+        if(idx >= CF_MAX_DEVICES_USB)
                 return;
         light_info("USB-MIDI device unmounted: idx=%d daddr=%d", idx, cf_midi_device[idx].daddr);
         cf_midi_device[idx].mounted = false;
+#ifdef CF_HAVE_USB_HUB
+        // after .mounted is cleared: this is what decides whether the hub itself is gone, and
+        // it asks cf_usb_mounted_count()
+        cf_hub_device_detached(idx);
+#endif
         cf_forward_table_rebuild();
-        _midi_led_write(false);
+        // the LED tracks "anything mounted", not "the last event was a mount" -- with a hub in
+        // front of the port, pulling one instrument out of four used to go dark
+        _midi_led_write(cf_usb_mounted_count() != 0);
         crossfire_display_update_status();
-        // see crossfire_usbhost_request_reset()'s declaration for why this is needed --
-        // works around a stale-hardware-state panic on RP2040's native USB host controller
-        // that otherwise breaks reconnecting the same device
-        crossfire_usbhost_request_reset();
+        //   ONLY WHEN THE ROOT PORT IS NOW EMPTY. See crossfire_usbhost_request_reset()'s
+        // declaration: it works around a stale-hardware-state panic on RP2040's native USB host
+        // controller that otherwise breaks reconnecting a device, but it does so by resetting
+        // the entire controller -- which also drops every other device on the bus. Behind a hub
+        // that would mean unplugging one instrument silently killed the other three.
+        //   a single-device rig is unaffected: its one device leaving IS the last one, so the
+        // reset still happens on exactly the disconnects it always did.
+        if(cf_usb_mounted_count() == 0)
+                crossfire_usbhost_request_reset();
 }
 
 #endif // CF_HAVE_MIDI_BACKEND

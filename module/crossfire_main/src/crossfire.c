@@ -119,6 +119,20 @@ static uint8_t crossfire_app_main(struct light_application *app)
         return LF_STATUS_RUN;
 }
 
+#if defined(_HAVE_TINYUSB) && defined(CF_HAVE_MIDI_BACKEND)
+//   THE ONE INVARIANT TYING THE TWO CONFIGURATIONS TOGETHER, and nothing enforced it until a
+// hub build went wrong for an unrelated reason and made the gap obvious. The forwarding engine
+// indexes cf_midi_device[] directly with the mount index TinyUSB hands it, so its table must be
+// at least as large as the number of MIDI interfaces TinyUSB will track. They are declared in
+// two files that include none of each other's headers -- crossfire_internal.h and
+// tusb_config.h -- and this is the only translation unit that sees both.
+//   an inequality, not equality: CFG_TUH_MIDI smaller than the table is merely unused capacity,
+// while larger is an out-of-bounds write from a callback.
+_Static_assert(CFG_TUH_MIDI <= CF_MAX_DEVICES_USB,
+        "CFG_TUH_MIDI (tusb_config.h) exceeds CF_MAX_DEVICES_USB (crossfire_internal.h): "
+        "TinyUSB could hand tuh_midi_mount_cb() an index past the end of cf_midi_device[]");
+#endif
+
 #ifdef _HAVE_TINYUSB
 static void _usbhost_init(void)
 {
@@ -144,6 +158,16 @@ void crossfire_init()
 
         _usbhost_init();
         light_info("tinyUSB host stack initialized","");
+#endif
+
+#ifdef CF_HAVE_USB_HUB
+        //   nothing to bring up: tinyusb's hub class driver enumerates the hub and its
+        // downstream ports entirely on its own from tuh_task(), and crossfire_hub.c only
+        // observes where devices land. Announced so the console says which topology this image
+        // expects, since a hub build and a direct build are otherwise indistinguishable at
+        // startup -- both just wait for something to mount
+        light_info("hub mode: forwarding up to %d USB-MIDI devices from a downstream hub",
+                        CF_MAX_DEVICES_USB);
 #endif
 
 #ifdef CF_HAVE_SPI_LINK
@@ -258,6 +282,24 @@ static void _crossfire_display_redraw(bool indicators_only)
                         mounted_count++;
         }
         uint8_t status_line[16];
+#ifdef CF_HAVE_USB_HUB
+        //   HUB MODE shows WHICH ports are occupied rather than how many devices there are,
+        // because with four sockets in front of you that is the question you actually have.
+        // The four cells are the hub's own downstream ports 1-4: the port's digit when a MIDI
+        // device is mounted on it, '-' when it is empty.
+        //   only once a hub has actually been seen, though. Before that (nothing plugged in
+        // yet, or an instrument plugged straight into the root port) every cell would read
+        // empty while a device sat there forwarding, so the plain count is shown instead. A
+        // device on a hub port above 4 also falls outside these cells -- see
+        // cf_hub_device_attached(), which logs it
+        if(cf_hub_addr() != 0) {
+                char ports[CF_MAX_DEVICES_USB + 1];
+                for(uint8_t p = 0; p < CF_MAX_DEVICES_USB; p++)
+                        ports[p] = cf_hub_port_occupied(p + 1) ? (char)('1' + p) : '-';
+                ports[CF_MAX_DEVICES_USB] = '\0';
+                snprintf((char *)status_line, sizeof(status_line), "hub %s", ports);
+        } else
+#endif
         snprintf((char *)status_line, sizeof(status_line), "devices: %u", mounted_count);
         light_draw_draw_text(display_render, (light_draw_point2d) {0, TypeLightSans_ttf_16px_font.char_height}, status_line);
 

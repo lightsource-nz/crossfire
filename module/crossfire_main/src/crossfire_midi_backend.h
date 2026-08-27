@@ -41,6 +41,24 @@ static inline bool tuh_midi_packet_write(uint8_t idx, const uint8_t packet[4])
         return 4 == tuh_midi_packet_write_n(idx, packet, 4);
 }
 
+// where a device sits on the bus, which is how hub mode (crossfire_hub.c) learns which
+// physical hub port a mounted MIDI device arrived on. hub_addr is 0 for a device attached
+// directly to the root port, otherwise the USB address of the hub in front of it, and
+// hub_port is that hub's 1-based downstream port number.
+//
+//   this is the only topology TinyUSB exposes to an application. tuh_mount_cb() is
+// deliberately NOT invoked for hub devices -- usbh.c logs "HUB address = N is mounted" and
+// returns instead -- so no callback ever announces a hub. Hub mode infers one from the
+// first MIDI device that mounts behind it.
+typedef struct {
+        uint8_t rhport;
+        uint8_t hub_addr;
+        uint8_t hub_port;
+        uint8_t speed;
+} tuh_bus_info_t;
+
+extern bool tuh_bus_info_get(uint8_t daddr, tuh_bus_info_t *bus_info);
+
 // app callbacks, implemented in crossfire_forward.c and invoked by whichever
 // backend is linked in (tinyusb itself on target builds, mock_midi.c in tests)
 extern void tuh_midi_mount_cb(uint8_t idx, const tuh_midi_mount_cb_t *mount_cb_data);

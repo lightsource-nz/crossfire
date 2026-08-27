@@ -99,11 +99,30 @@
 // mount callback and no visible error, since CFG_TUSB_DEBUG is 0)
 #define CFG_TUH_ENUMERATION_BUFSIZE 512
 
-// only hub class is enabled
-#define CFG_TUH_HUB                 1
+//   HUBS IN THE WHOLE TREE, not "how many hubs you may plug in" -- and that distinction cost a
+// full debugging session, so it is worth stating plainly. This was 1, and hub mode
+// (CROSSFIRE_ENABLE_USB_HUB) then failed on the first real hub it met: the hub enumerated fine
+// at address 5, and the device on ITS port 1 turned out to be a second hub (bDeviceClass 0x09).
+// Physically one plastic box; electrically two chips in series, which is how most hubs with more
+// than four ports are built.
+//   the failure is silent and looks nothing like a configuration limit. enum_get_new_address()
+// allocates hub addresses from a window exactly CFG_TUH_HUB wide, returns 0 when it is full, and
+// the caller's TU_ASSERT(new_addr != 0,) aborts enumeration -- which the hub driver then retries,
+// forever, at full speed. Nothing mounts and nothing says why. TinyUSB does log "All addresses
+// are occupied, try to increase CFG_TUH_HUB value", but only at TU_LOG1, and CFG_TUSB_DEBUG is 0
+// here. The symptom on the bench is a board that looks alive, spins in tuh_task(), and never
+// calls a mount callback.
+//   2 covers a single chained hub, which is what the bench rig is and what a 7-port hub
+// generally is. A deeper tree (a hub behind a dock behind a hub) needs more; the cost is one
+// usbh_device_t plus a hub interface slot each.
+#define CFG_TUH_HUB                 2
 
-// max device support (excluding hub device)
-// 1 hub typically has 4 ports
+//   max device support, EXCLUDING the hub itself -- TinyUSB sizes its device table as
+// TOTAL_DEVICES = CFG_TUH_DEVICE_MAX + CFG_TUH_HUB (usbh.c), so 4 here means four instruments
+// on the hub's downstream ports plus the hub, not three plus the hub.
+//   this number is the same four as crossfire_internal.h's CF_MAX_DEVICES_USB, and they must
+// stay equal: TinyUSB never hands out a mount index at or beyond CFG_TUH_MIDI, which is what
+// lets the forwarding engine's device table be indexed by it directly.
 #define CFG_TUH_DEVICE_MAX          (CFG_TUH_HUB ? 4 : 1)
 
 // enable the USB-MIDI host class driver (disabled by default upstream), and track up to

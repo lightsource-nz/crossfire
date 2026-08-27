@@ -19,7 +19,11 @@ Light_Application_Define(crossfire_forward_test, test_app_event, test_app_main, 
 // out here rather than exercising either concern
 void crossfire_display_update_status(void) { }
 void crossfire_display_update_indicators(void) { }
-void crossfire_usbhost_request_reset(void) { }
+
+// counted rather than ignored: WHEN this is requested is itself under test. It resets the whole
+// USB host controller, so a disconnect that still leaves devices mounted must not ask for one
+static int usbhost_reset_requests = 0;
+void crossfire_usbhost_request_reset(void) { usbhost_reset_requests++; }
 
 static int failures = 0;
 
@@ -114,11 +118,128 @@ static void test_disconnect_removes_forwarding_target(void)
         CHECK(!got, "an unmounted device is dropped from the forwarding table");
 }
 
+// -- hub mode: four devices on one hub's downstream ports, reached through a single root port --
+
+#define TEST_HUB_ADDR   5 // the address tinyusb gives the hub itself; any non-zero value works
+
+// mounts 'count' devices on hub ports 1..count, each with one rx and one tx cable. daddr is
+// idx+1, matching the order tinyusb would assign addresses as they enumerate
+static void connect_hub_devices(uint8_t count)
+{
+        for(uint8_t idx = 0; idx < count; idx++) {
+                mock_midi_set_bus_info(idx + 1, TEST_HUB_ADDR, idx + 1);
+                mock_midi_connect(idx, idx + 1, 1, 1);
+        }
+}
+
+static void test_hub_four_devices_broadcast(void)
+{
+        mock_midi_reset();
+        connect_hub_devices(4);
+
+        // note-on, middle C, cable 0, from the instrument on hub port 1
+        const uint8_t note_on[4] = { 0x09, 0x90, 0x3C, 0x64 };
+        mock_midi_feed(0, note_on);
+
+        cf_forward_service();
+
+        uint8_t out[4];
+        bool all = true;
+        for(uint8_t idx = 1; idx < 4; idx++)
+                all = all && mock_midi_take_written(idx, out) && memcmp(out, note_on, 4) == 0;
+        CHECK(all, "a device on one hub port broadcasts to all three other hub ports");
+        CHECK(!mock_midi_take_written(0, out),
+                "hub forwarding never loops data back out the port it arrived on");
+}
+
+static void test_hub_port_mapping(void)
+{
+        mock_midi_reset();
+        connect_hub_devices(4);
+
+        CHECK(cf_hub_addr() == TEST_HUB_ADDR, "the hub's address is learned from the devices behind it");
+
+        bool mapped = true;
+        for(uint8_t idx = 0; idx < 4; idx++)
+                mapped = mapped && cf_hub_port_of_device(idx) == (uint8_t)(idx + 1);
+        CHECK(mapped, "each mounted device reports the hub port it is plugged into");
+
+        bool occupied = true;
+        for(uint8_t port = 1; port <= 4; port++)
+                occupied = occupied && cf_hub_port_occupied(port);
+        CHECK(occupied, "every hub port with a device on it reads as occupied");
+        CHECK(!cf_hub_port_occupied(CF_HUB_PORT_NONE),
+                "port 0 is never occupied -- it is what a root-attached device reports");
+}
+
+static void test_hub_root_attached_device_has_no_port(void)
+{
+        mock_midi_reset();
+        // no mock_midi_set_bus_info(): every address defaults to hub_addr 0, the root port
+        mock_midi_connect(0, 1, 1, 1);
+
+        CHECK(cf_hub_port_of_device(0) == CF_HUB_PORT_NONE,
+                "a device plugged straight into the root port reports no hub port");
+        CHECK(cf_hub_addr() == 0,
+                "no hub is claimed when nothing has mounted behind one");
+}
+
+static void test_hub_unplug_keeps_siblings(void)
+{
+        mock_midi_reset();
+        connect_hub_devices(4);
+
+        mock_midi_disconnect(1); // the instrument on hub port 2
+
+        CHECK(!cf_hub_port_occupied(2), "unplugging a device frees its hub port");
+        CHECK(cf_hub_port_occupied(1) && cf_hub_port_occupied(3) && cf_hub_port_occupied(4),
+                "the other hub ports are untouched by one device leaving");
+        CHECK(cf_hub_addr() == TEST_HUB_ADDR,
+                "the hub is still known while devices remain behind it");
+        //   THE POINT OF THE WHOLE CHANGE: this reset tears down the host controller, taking
+        // every other device on the bus with it. Behind a hub that would turn unplugging one
+        // instrument into losing all four
+        CHECK(usbhost_reset_requests == 0,
+                "no host controller reset is requested while other devices are still mounted");
+
+        const uint8_t cc[4] = { 0x0B, 0xB0, 0x07, 0x7F };
+        mock_midi_feed(0, cc);
+        cf_forward_service();
+
+        uint8_t out[4];
+        CHECK(mock_midi_take_written(2, out) && mock_midi_take_written(3, out),
+                "the surviving devices keep receiving forwarded traffic");
+        CHECK(!mock_midi_take_written(1, out),
+                "the unplugged device is dropped from the forwarding table");
+}
+
+static void test_hub_reset_requested_once_port_is_empty(void)
+{
+        mock_midi_reset();
+        connect_hub_devices(4);
+
+        for(uint8_t idx = 0; idx < 3; idx++)
+                mock_midi_disconnect(idx);
+        CHECK(usbhost_reset_requests == 0,
+                "unplugging all but the last device requests no host controller reset");
+
+        mock_midi_disconnect(3);
+        CHECK(usbhost_reset_requests == 1,
+                "the disconnect that empties the bus requests the host controller reset");
+        CHECK(cf_hub_addr() == 0,
+                "the hub is forgotten once nothing is mounted behind it");
+}
+
 static const struct test_case test_cases[] = {
         { "broadcast_two_devices", test_broadcast_two_devices },
         { "broadcast_three_devices", test_broadcast_three_devices },
         { "cable_count_mismatch", test_cable_count_mismatch },
         { "disconnect_removes_forwarding_target", test_disconnect_removes_forwarding_target },
+        { "hub_four_devices_broadcast", test_hub_four_devices_broadcast },
+        { "hub_port_mapping", test_hub_port_mapping },
+        { "hub_root_attached_device_has_no_port", test_hub_root_attached_device_has_no_port },
+        { "hub_unplug_keeps_siblings", test_hub_unplug_keeps_siblings },
+        { "hub_reset_requested_once_port_is_empty", test_hub_reset_requested_once_port_is_empty },
 };
 #define TEST_CASE_COUNT (sizeof(test_cases) / sizeof(test_cases[0]))
 

@@ -59,6 +59,14 @@ jobs:
             preset: conf-crossfire-link-debug
             targets: crossfire_main
             tree: build
+          #   hub mode, for the same reason the link rig has a leg: CROSSFIRE_ENABLE_USB_HUB
+          # defaults OFF, so every other firmware configuration compiles crossfire_hub.c to
+          # nothing. The host job covers the hub LOGIC against the mock backend -- this leg is
+          # what proves it still compiles against the real TinyUSB host stack
+          - name: rp2040 (USB hub)
+            preset: conf-crossfire-hub-debug
+            targets: crossfire_main
+            tree: build
     uses: lightsource-nz/light_framework_mk3/.github/workflows/project-build.yml@v1
     with:
       project: crossfire

@@ -66,6 +66,41 @@ extern void cf_forward_table_rebuild(void);
 // according to cf_forward_table; called once per crossfire_task() tick
 extern void cf_forward_service(void);
 
+// how many of the real (tinyusb-backed) device slots are currently mounted. the SPI link's
+// reserved slot is never counted -- it is not on the USB bus and is mounted for the life of
+// the program. used to decide whether a disconnect emptied the root port
+// (crossfire_usbhost_request_reset()) and to drive the device count on the status display
+extern uint8_t cf_usb_mounted_count(void);
+
+#ifdef CF_HAVE_USB_HUB
+// HUB MODE: one USB hub on the root port, with up to CF_MAX_DEVICES_USB MIDI devices on its
+// downstream ports, instead of one device per root port. The forwarding engine itself is
+// unchanged by this -- it already broadcasts across every mounted slot -- so everything here
+// is about knowing WHERE a device is: which hub, which port. See crossfire_hub.c.
+//
+//   the port numbers are the hub's own 1-based downstream port numbers, straight from
+// tuh_bus_info_get(). A hub with more than CF_MAX_DEVICES_USB ports reports ports above that
+// range and those devices still mount and still forward -- CF_MAX_DEVICES_USB caps how many
+// MIDI interfaces tinyusb will track (CFG_TUH_MIDI), not which port numbers are legal
+#define CF_HUB_PORT_NONE               0
+
+// records where a newly-mounted device sits, from its USB address. called from
+// tuh_midi_mount_cb() before the forwarding table is rebuilt
+extern void cf_hub_device_attached(uint8_t idx, uint8_t daddr);
+// forgets a device's position; called from tuh_midi_umount_cb()
+extern void cf_hub_device_detached(uint8_t idx);
+// the hub port 'idx' is attached to, or CF_HUB_PORT_NONE if it is on the root port directly
+// (or not mounted at all)
+extern uint8_t cf_hub_port_of_device(uint8_t idx);
+// USB address of the hub devices have been seen behind, or 0 if none has been seen yet.
+// there is no callback for a hub mounting, so this only becomes non-zero once the first
+// MIDI device behind it enumerates -- see crossfire_midi_backend.h
+extern uint8_t cf_hub_addr(void);
+// true if a mounted MIDI device currently occupies this hub port. 'port' is 1-based, as the
+// hub numbers its own ports; port 0 (CF_HUB_PORT_NONE) is never occupied
+extern bool cf_hub_port_occupied(uint8_t port);
+#endif // CF_HAVE_USB_HUB
+
 // how long the RX/TX status indicators stay lit after the most recent activity, before
 // cf_activity_indicators_service() turns them off again
 #define CF_ACTIVITY_INDICATOR_MS       150
@@ -126,10 +161,15 @@ extern void crossfire_display_update_indicators(void);
 // buffer-control state behind across a disconnect (an acknowledged upstream tinyusb/RP2040
 // issue -- see hathach/tinyusb#3533 -- not something fixable from application code alone),
 // which panics ("buf_ctrl ... already available") the next time a device tries to
-// enumerate. resetting the whole controller after every disconnect is a coarse fix -- it
-// also drops any OTHER currently-mounted device sharing this root port, which is fine for
-// today's single-device test setup but will need revisiting once multiple simultaneous
-// devices/hub ports are in play
+// enumerate.
+//
+//   resetting the whole controller is coarse: it drops every other device sharing this root
+// port too. That was harmless while exactly one device could ever be mounted, and is not
+// once a hub is in front of the port -- unplugging one instrument would silently take the
+// other three down with it. So the request is now made only when a disconnect leaves NO USB
+// device mounted at all (see tuh_midi_umount_cb()), which is precisely the root-port-empty
+// case the workaround was written for. A single-device rig behaves exactly as before,
+// because there the departing device is always the last one.
 extern void crossfire_usbhost_request_reset(void);
 
 #endif

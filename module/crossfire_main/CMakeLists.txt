@@ -6,6 +6,21 @@ add_executable(crossfire_main)
 # until that hardware is available to test against. see crossfire_spi_link.c
 option(CROSSFIRE_ENABLE_SPI_LINK "Build crossfire_main as a 2-board SPI-linked MIDI transport test rig" OFF)
 
+#   HUB MODE: reach four instruments through ONE hardware root port and a downstream USB hub,
+# rather than through the custom PCB's four independent PIO-emulated host ports. That makes the
+# four-device configuration something a stock Pico (or the H7 board) can run today, with no
+# custom hardware and no PIO-USB dependency -- see light_usb's CMakeLists for why PIO-USB is
+# deliberately not linked.
+#
+#   this changes very little in the firmware, and that is the point: the forwarding engine
+# already broadcasts across every mounted device slot and tusb_config.h has always set
+# CFG_TUH_HUB. What the option adds is crossfire_hub.c, which tracks WHICH hub port each device
+# arrived on -- tinyusb's mount index says nothing about that and is not even stable across a
+# reconnect -- and the status display's port map. The one behavioural fix hub mode needed, not
+# resetting the whole host controller when a single device disconnects, is unconditional; see
+# tuh_midi_umount_cb().
+option(CROSSFIRE_ENABLE_USB_HUB "Build crossfire_main for a downstream USB hub on the root port" OFF)
+
 target_include_directories(
         crossfire_main PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/include
@@ -74,6 +89,25 @@ if(LIGHT_PLATFORM STREQUAL TARGET)
 endif()
 if(_cf_have_backend)
         target_compile_definitions(crossfire_main PUBLIC CF_HAVE_MIDI_BACKEND)
+endif()
+
+#   hub mode rides on the backend rather than standing beside it: every symbol crossfire_hub.c
+# touches -- the device table, CF_MAX_DEVICES_USB, cf_usb_mounted_count() -- lives inside
+# CF_HAVE_MIDI_BACKEND, and a build with no USB host stack has no bus to find a hub on. Refused
+# rather than quietly ignored, because a preset that asks for hub mode and silently gets the
+# ordinary firmware is exactly the kind of thing that gets flashed and puzzled over.
+if(CROSSFIRE_ENABLE_USB_HUB)
+        if(NOT _cf_have_backend)
+                message(FATAL_ERROR
+                        "CROSSFIRE_ENABLE_USB_HUB is ON, but this configuration has no USB host "
+                        "backend (LIGHT_PLATFORM=${LIGHT_PLATFORM}, LIGHT_SYSTEM=${LIGHT_SYSTEM}).\n"
+                        "Hub mode needs TinyUSB, which means a TARGET build on PICO_SDK or CMSIS.")
+        endif()
+        target_sources(
+                crossfire_main PUBLIC
+                ${CMAKE_CURRENT_LIST_DIR}/src/crossfire_hub.c
+        )
+        target_compile_definitions(crossfire_main PUBLIC CF_HAVE_USB_HUB)
 endif()
 
 #   the per-platform packaging step, which has no common spelling: the SDK generates .uf2 and

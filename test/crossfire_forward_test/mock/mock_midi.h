@@ -16,6 +16,16 @@
 // clears all simulated devices and queued data
 extern void mock_midi_reset(void);
 
+// places a device address on the bus, as tuh_bus_info_get() will then report it: hub_addr 0
+// means attached straight to the root port, otherwise it is the USB address of the hub in
+// front of the device and hub_port that hub's 1-based downstream port number.
+//
+//   every address defaults to root-attached, so a test that isn't about topology can ignore
+// this. it has to be called BEFORE mock_midi_connect() for the same address, because the hub
+// tracker queries the bus from inside the mount callback -- which is exactly when tinyusb's
+// own information becomes available too
+extern void mock_midi_set_bus_info(uint8_t daddr, uint8_t hub_addr, uint8_t hub_port);
+
 // simulates a device mounting; invokes tuh_midi_mount_cb() exactly as tinyusb would
 extern void mock_midi_connect(uint8_t idx, uint8_t daddr, uint8_t rx_cables, uint8_t tx_cables);
 

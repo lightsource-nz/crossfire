@@ -24,6 +24,10 @@
                 'conf-crossfire-link-debug'  = 'build'
                 'conf-crossfire-pico2-debug' = 'build-pico2'
                 'conf-crossfire-link-pico2-debug' = 'build-pico2'
+                #   hub mode follows the same split: the rp2040 configuration shares build/
+                # with the other rp2040 presets, the rp2350 one shares build-pico2
+                'conf-crossfire-hub-debug'   = 'build'
+                'conf-crossfire-hub-pico2-debug' = 'build-pico2'
                 #   build-host, not build: this preset now overrides binaryDir so it stops
                 # colliding with the two firmware presets. It is the only tree with tests in it
                 'conf-crossfire-host-debug'  = 'build-host'
@@ -39,6 +43,11 @@
                 'conf-crossfire-host-debug'  = @{ LIGHT_PLATFORM = 'HOST'; LIGHT_BOARD = 'pico_hostmode' }
                 'conf-crossfire-link-debug'  = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; CROSSFIRE_ENABLE_SPI_LINK = 'ON' }
                 'conf-crossfire-link-pico2-debug' = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico2'; CROSSFIRE_ENABLE_SPI_LINK = 'ON' }
+                #   SPI link is asserted OFF as well as hub ON: these presets share a tree with
+                # conf-crossfire-debug, which turns the link on, and a stale cache carrying it
+                # over is exactly the mix-up worth catching here
+                'conf-crossfire-hub-debug'   = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; CROSSFIRE_ENABLE_USB_HUB = 'ON'; CROSSFIRE_ENABLE_SPI_LINK = 'OFF' }
+                'conf-crossfire-hub-pico2-debug' = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico2'; CROSSFIRE_ENABLE_USB_HUB = 'ON'; CROSSFIRE_ENABLE_SPI_LINK = 'OFF' }
                 'conf-crossfire-mini-stm32h7-debug' = @{ LIGHT_SYSTEM = 'CMSIS'; LIGHT_BOARD = 'mini_stm32h7' }
                 'conf-crossfire-link-stm32h7-debug' = @{ LIGHT_SYSTEM = 'CMSIS'; LIGHT_BOARD = 'mini_stm32h7'; CROSSFIRE_ENABLE_SPI_LINK = 'ON' }
                 'conf-crossfire-trace'       = @{ LIGHT_PLATFORM = 'TARGET'; LIGHT_BOARD = 'pico'; LIGHT_RUN_MODE = 'TRACE' }
@@ -70,6 +79,16 @@
                         Svd    = '../pico-sdk/src/rp2350/hardware_regs/RP2350.svd'
                 }
                 'conf-crossfire-link-pico2-debug' = @{
+                        Config = 'openocd-pico2.cfg'
+                        Svd    = '../pico-sdk/src/rp2350/hardware_regs/RP2350.svd'
+                }
+                #   hub mode is the same two chips as the plain firmware presets, so it debugs
+                # through the same probe configs -- only what is on the USB port differs
+                'conf-crossfire-hub-debug'   = @{
+                        Config = 'openocd.cfg'
+                        Svd    = '../pico-sdk/src/rp2040/hardware_regs/RP2040.svd'
+                }
+                'conf-crossfire-hub-pico2-debug' = @{
                         Config = 'openocd-pico2.cfg'
                         Svd    = '../pico-sdk/src/rp2350/hardware_regs/RP2350.svd'
                 }
