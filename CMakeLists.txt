@@ -62,12 +62,11 @@ endif()
 # had one until the extraction. (The CMake targets do not collide -- the core module defines
 # light_usb_common -- so this is only about finding the right directory.)
 light_resolve_project(LIGHT_USB light_usb MARKER module/light_usb/CMakeLists.txt)
-#   A WEAK FLOOR, and worth saying so rather than letting it look like a considered one. v0.1.0
-# is the only release light_usb has, and everything crossfire actually uses of it -- the CMSIS
-# port, light_usb_init(), the host-MIDI class wiring -- landed after that tag. So this passes on
-# any checkout that could plausibly be present, and would not catch the mismatch it exists to
-# catch. It becomes meaningful the moment light_usb cuts a release describing that API.
-light_require_project_version(LIGHT_USB 0.1.0)
+#   0.2.0, which is the release that describes the API crossfire actually uses: the CMSIS port,
+# light_usb_init(), and the host-MIDI class wiring all landed after v0.1.0. Pinning at 0.1.0 --
+# which this briefly did, for want of anything newer to name -- would have passed on any checkout
+# plausibly present and caught nothing.
+light_require_project_version(LIGHT_USB 0.2.0)
 add_subdirectory(${LIGHT_USB_PATH} light_usb_group)
 
 #   the display group -- core, panel drivers and backlight, previously four separate submodules
