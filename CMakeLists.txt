@@ -30,6 +30,22 @@ project(crossfire C CXX ASM)
 
 add_subdirectory(${LIGHT_PATH}/ light_framework)
 
+#   THIS APPLICATION'S VERSION, derived from its own git tags exactly as the framework's and the
+# library groups' are, and compiled in as CROSSFIRE_VERSION_STRING. A firmware image in someone
+# else's hands could not say which commit produced it before this.
+light_project_version(PREFIX CROSSFIRE PATH "${CMAKE_CURRENT_LIST_DIR}")
+
+#   AND WHAT IT NEEDS OF ITS DEPENDENCIES. Each group below checks its own dependencies when it
+# is added; these are the floors CROSSFIRE needs, which is a different question -- a group can
+# satisfy its own requirements and still be older than the version this application was written
+# against.
+#   1.9.0 of the framework: crossfire's forwarding engine is built on the command tree that moved
+# into light_core in 1.8.0, and light_project_version() above is itself 1.9.0 API.
+light_require_project_version(LIGHT 1.9.0)
+if(FONT_CRUSHER_PATH)
+        light_require_project_version(FONT_CRUSHER 1.0.0)
+endif()
+
 # modules
 
 #   the USB group -- device core, host core and both MIDI class drivers. These were four
@@ -46,6 +62,12 @@ add_subdirectory(${LIGHT_PATH}/ light_framework)
 # had one until the extraction. (The CMake targets do not collide -- the core module defines
 # light_usb_common -- so this is only about finding the right directory.)
 light_resolve_project(LIGHT_USB light_usb MARKER module/light_usb/CMakeLists.txt)
+#   A WEAK FLOOR, and worth saying so rather than letting it look like a considered one. v0.1.0
+# is the only release light_usb has, and everything crossfire actually uses of it -- the CMSIS
+# port, light_usb_init(), the host-MIDI class wiring -- landed after that tag. So this passes on
+# any checkout that could plausibly be present, and would not catch the mismatch it exists to
+# catch. It becomes meaningful the moment light_usb cuts a release describing that API.
+light_require_project_version(LIGHT_USB 0.1.0)
 add_subdirectory(${LIGHT_USB_PATH} light_usb_group)
 
 #   the display group -- core, panel drivers and backlight, previously four separate submodules
@@ -65,6 +87,7 @@ add_subdirectory(${LIGHT_USB_PATH} light_usb_group)
 # group has, a stray module checkout would silently shadow the group and the build would fail
 # hunting for drivers that were never added.
 light_resolve_project(LIGHT_DISPLAY light_display MARKER module/light_display/CMakeLists.txt)
+light_require_project_version(LIGHT_DISPLAY 1.0.0)
 add_subdirectory(${LIGHT_DISPLAY_PATH} light_display_group)
 
 #   the UI group, for light_canvas -- which used to be this project's one remaining module
@@ -76,6 +99,7 @@ add_subdirectory(${LIGHT_DISPLAY_PATH} light_display_group)
 # presents through light_display. Same MARKER reasoning as above: the group and its widget
 # module share the name light_ui.
 light_resolve_project(LIGHT_UI light_ui MARKER module/light_ui/CMakeLists.txt)
+light_require_project_version(LIGHT_UI 1.0.0)
 add_subdirectory(${LIGHT_UI_PATH} light_ui_group)
 
 add_subdirectory(module/crossfire_main)
